@@ -1,0 +1,30 @@
+# Nix / Direnv
+.direnv/
+
+# IDEs and System Files
+.idea/
+*.iml
+.vscode/
+.DS_Store
+
+# Backend (Rust)
+**/target/
+*.bk
+
+# Frontend (Vue / Node)
+**/node_modules/
+**/dist/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Secrets and Local Configs
+*.env
+*.env.local
+*.env.*.local
+
+# Local Database Dumps 
+*.db
+*.sqlite
