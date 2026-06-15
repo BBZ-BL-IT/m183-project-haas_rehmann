@@ -18,7 +18,7 @@ const auth = useAuthStore()
 
     <template v-else>
       <p>Melde dich an, um zu spielen.</p>
-      <button class="btn btn-primary" @click="auth.login">Login mit Kanidm</button>
+      <button class="btn btn-primary" @click="auth.login">Login</button>
     </template>
   </section>
 </template>
