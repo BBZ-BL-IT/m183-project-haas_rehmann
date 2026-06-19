@@ -24,3 +24,14 @@ dotenvy = "0.15"
 
 # Serve Vue static
 tower-http = { version = "0.7", features = ["fs"] }
+
+# Database
+sqlx = { version = "0.9.0", features = [
+	"runtime-tokio",
+	"tls-rustls",
+	"postgres",
+	"macros",
+	"chrono",
+	"uuid",
+] }
+anyhow = "1.0.102"
