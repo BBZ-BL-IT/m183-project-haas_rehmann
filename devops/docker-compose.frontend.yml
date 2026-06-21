@@ -23,7 +23,10 @@ networks:
 
 services:
   frontend:
-    image: ${FRONTEND_IMAGE:-changeme/grand-casino-frontend:latest}
+    # Built locally by default; override FRONTEND_IMAGE to pull a published image.
+    image: ${FRONTEND_IMAGE:-grand-casino-frontend:local}
+    build:
+      context: ../frontend
     container_name: casino-frontend
     restart: unless-stopped
     ports:

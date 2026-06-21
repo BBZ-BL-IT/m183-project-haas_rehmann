@@ -1,6 +1,7 @@
 **M183 Grand Casino Rehmann**
 
 This project is part of LB2 in the Module 183. Contributers are:
+
 - Timeon Haas
 - Nico Rehmann
 
@@ -17,14 +18,14 @@ containerised local environment.
 
 ## Tech stack
 
-| Layer    | Technology |
-| -------- | ---------- |
-| Frontend | Vue 3 + TypeScript, Vite, Pinia, vue-router, axios |
+| Layer    | Technology                                                                                                                                                           |
+| -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Frontend | Vue 3 + TypeScript, Vite, Pinia, vue-router, axios                                                                                                                   |
 | Backend  | Rust (edition 2024), [axum](https://github.com/tokio-rs/axum) 0.8, [sqlx](https://github.com/launchbadge/sqlx) (PostgreSQL), `axum-oidc-client` (OAuth2/OIDC + PKCE) |
-| Database | PostgreSQL 17 |
-| Identity | [Kanidm](https://kanidm.com/) (OIDC provider) |
-| DevOps   | Podman / Docker Compose, GitHub Actions → Docker Hub |
-| Dev env  | Nix flake (`flake.nix`) |
+| Database | PostgreSQL 17                                                                                                                                                        |
+| Identity | [Kanidm](https://kanidm.com/) (OIDC provider)                                                                                                                        |
+| DevOps   | Podman / Docker Compose, GitHub Actions → Docker Hub                                                                                                                 |
+| Dev env  | Nix flake (`flake.nix`)                                                                                                                                              |
 
 ## Project structure
 
@@ -109,12 +110,12 @@ The container stack (PostgreSQL + Kanidm + backend + frontend) lives in
 
 ```sh
 cd devops
-cp .env.example .env          # set DOCKER_USERNAME + a strong PRIVATE_COOKIE_KEY
+cp .env.example .env          # set a strong PRIVATE_COOKIE_KEY
 
-# Podman (rootless – staged bring-up handles one-shot init containers):
+# Podman (rootless – builds images, staged bring-up handles init containers):
 ./podman-up.sh
 # …or Docker:
-docker compose up -d
+docker compose up -d --build
 ```
 
 Then open <http://localhost:8081>. Kanidm runs at <https://localhost:8443>
@@ -160,14 +161,16 @@ npm run type-check   # vue-tsc
   (`LOAN_MAX_PER_WINDOW`, `LOAN_WINDOW_SECONDS`, `LOAN_MAX_AMOUNT`).
 - **Frontend** — `frontend/.env.example`: API base URL, OIDC login/logout paths,
   and the `VITE_USE_MOCK` flag.
-- **Stack** — `devops/.env.example`: image names, Postgres credentials, Kanidm
-  origin, and the cookie key shared with the backend.
+- **Stack** — `devops/.env.example`: Postgres credentials, Kanidm origin, and
+  the cookie key shared with the backend. Images are built locally by default
+  (no Docker Hub account needed); set `BACKEND_IMAGE`/`FRONTEND_IMAGE` to pull
+  the published images instead.
 
 ## Continuous integration
 
 `.github/workflows/` builds and pushes the backend and frontend Docker images to
 Docker Hub on pushes to `main` that touch the respective directory.
 
-## Interfaces (Schnittstellen)
+## Interfaces
 
 ![excalidraw](./assets/excalidraw.png)

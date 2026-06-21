@@ -22,7 +22,10 @@ networks:
 
 services:
   backend:
-    image: ${BACKEND_IMAGE:-changeme/grand-casino-backend:latest}
+    # Built locally by default; override BACKEND_IMAGE to pull a published image.
+    image: ${BACKEND_IMAGE:-grand-casino-backend:local}
+    build:
+      context: ../backend
     container_name: casino-backend
     restart: unless-stopped
     ports:

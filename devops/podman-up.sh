@@ -58,6 +58,8 @@ echo "== Kanidm: set demo account passwords =="
 
 # Backend + frontend only exist in the combined compose file.
 if grep -qE '^[[:space:]]*frontend:' "$FILE"; then
+  echo "== Building backend + frontend images =="
+  "${PC[@]}" build backend frontend
   echo "== Backend =="
   "${PC[@]}" up -d --no-deps backend
   echo "== Frontend =="

@@ -8,8 +8,8 @@ devops/
 ├── .env.example                 # copy to .env and edit
 ├── docker-compose.yml           # ⭐ everything (postgres + kanidm + backend + frontend)
 ├── docker-compose.infra.yml     # postgres + kanidm only
-├── docker-compose.backend.yml   # backend only (from Docker Hub)
-├── docker-compose.frontend.yml  # frontend only (from Docker Hub)
+├── docker-compose.backend.yml   # backend only (built locally / or pulled)
+├── docker-compose.frontend.yml  # frontend only (built locally / or pulled)
 ├── podman-up.sh                 # staged bring-up for podman (see below)
 └── kanidm/
     ├── server.toml              # kanidm server config
@@ -39,8 +39,8 @@ devops/
   ```sh
   cd devops
   cp .env.example .env
-  # edit .env: set DOCKER_USERNAME (Docker Hub account that owns the images)
-  #            and a strong PRIVATE_COOKIE_KEY  (openssl rand -base64 64)
+  # edit .env: set a strong PRIVATE_COOKIE_KEY  (openssl rand -base64 64)
+  # Images are built locally by default — no Docker Hub account needed.
   ```
 
 - Rootless podman needs a `policy.json` and `registries.conf` (usually already
@@ -108,15 +108,15 @@ The partial stacks share the Docker/podman network `casino_net` created by the
 infra stack. Start the infra **first**:
 
 ```sh
-# podman
+# podman (--build builds the image from source the first time)
 ./podman-up.sh docker-compose.infra.yml
-podman-compose -f docker-compose.backend.yml up -d
-podman-compose -f docker-compose.frontend.yml up -d
+podman-compose -f docker-compose.backend.yml up -d --build
+podman-compose -f docker-compose.frontend.yml up -d --build
 
 # docker
 docker compose -f docker-compose.infra.yml up -d
-docker compose -f docker-compose.backend.yml up -d
-docker compose -f docker-compose.frontend.yml up -d
+docker compose -f docker-compose.backend.yml up -d --build
+docker compose -f docker-compose.frontend.yml up -d --build
 ```
 
 - `docker-compose.backend.yml` reads the OAuth2 client secret and Kanidm CA
@@ -182,6 +182,7 @@ podman exec casino-kanidm /sbin/kanidmd recover-account <name> -c /data/server.t
   via the admin socket). If you pin a different Kanidm version and a step fails,
   check `podman logs casino-kanidm-provision` — the script tolerates
   "already exists", so it is safe to adjust and re-run.
-- **Images**: `DOCKER_USERNAME/grand-casino-backend:latest` and
-  `…/grand-casino-frontend:latest` are produced by the GitHub workflows in
-  `.github/workflows/`.
+- **Images**: built locally from `../backend` and `../frontend` by default
+  (`grand-casino-backend:local` / `grand-casino-frontend:local`). The GitHub
+  workflows in `.github/workflows/` also build and push them to Docker Hub; set
+  `BACKEND_IMAGE`/`FRONTEND_IMAGE` in `.env` to pull those instead of building.
