@@ -15,16 +15,23 @@ export interface UserInfo {
 }
 
 // POST /spin
+// Der Client wählt nur den Einsatz – das Backend würfelt die Walzen und
+// berechnet den Gewinn (Server ist die einzige Wahrheit; niemals dem Client
+// die Walzen/Auszahlung anvertrauen).
 export interface SpinRequest {
   stake_amount: number
 }
 
-// Backend liefert ein 3x3 Raster zurück.
-export type SpinPattern = number[][]
-
+// Das Backend liefert genau 3 Zahlen (eine Reihe). Sind alle gleich -> grosser
+// Gewinn; genau zwei gleich -> Einsatz zurück; sonst verloren.
 export interface SpinResponse {
-  pattern: SpinPattern
-  amount_earned: number
+  reels: number[] // genau 3 Zahlen (Symbole 1..7)
+  amount_earned: number // Brutto-Gewinn (0 bei Niete)
+  // Autoritative Werte nach dem Spin, damit das Frontend Server-Wahrheit
+  // anzeigt statt lokal zu rechnen.
+  balance: number
+  total_spent: number
+  total_win: number
 }
 
 // POST /loan/{amount}  (amount steckt im URL-Pfad)

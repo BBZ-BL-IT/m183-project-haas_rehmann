@@ -9,9 +9,11 @@ COPY . .
 
 # Build-Zeit-Variablen (Vite backt sie ins Bundle). Defaults sind hier gesetzt,
 # koennen aber per --build-arg ueberschrieben werden (siehe Workflow).
+# Leerer API-Base => relative Calls an denselben Origin (nginx proxyt ans Backend).
 ARG VITE_API_BASE_URL=
-ARG VITE_OAUTH_LOGIN_PATH=/login
-ARG VITE_OAUTH_LOGOUT_PATH=/logout
+# OIDC-Pfade des Backends (axum-oidc-client base_path = /auth).
+ARG VITE_OAUTH_LOGIN_PATH=/auth
+ARG VITE_OAUTH_LOGOUT_PATH=/auth/logout
 ARG VITE_USE_MOCK=false
 ENV VITE_API_BASE_URL=$VITE_API_BASE_URL \
     VITE_OAUTH_LOGIN_PATH=$VITE_OAUTH_LOGIN_PATH \

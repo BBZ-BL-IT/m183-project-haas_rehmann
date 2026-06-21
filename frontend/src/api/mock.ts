@@ -56,23 +56,38 @@ export function mockTakeLoan(amount: number): LoanResponse {
   }
 }
 
-// zufälliges 3x3-Raster (Symbole 1..7) — echte Spin-Logik kommt später ins Backend
-function randomPattern(): number[][] {
-  return Array.from({ length: 3 }, () =>
-    Array.from({ length: 3 }, () => Math.floor(Math.random() * 7) + 1),
-  )
+// Spiegelt die Backend-Logik (game.rs): 3 Walzen, gestaffelte Auszahlung.
+const TRIPLE_MULTIPLIER: Record<number, number> = {
+  7: 50,
+  6: 25,
+  5: 15,
+  4: 10,
+  3: 8,
+  2: 6,
+  1: 5,
 }
 
 export function mockSpin(stake: number): SpinResponse {
-  const pattern = randomPattern()
-  // simple Test-Regel: mittlere Reihe (Payline) alle gleich => 5x Einsatz
-    const [a, b, c] = pattern[1] ?? [0, 0, 0]
-  const amount_earned = a === b && b === c ? stake * 5 : 0
+  const reels = Array.from({ length: 3 }, () => Math.floor(Math.random() * 7) + 1)
+  const [a = 0, b = 0, c = 0] = reels
+
+  let amount_earned = 0
+  if (a === b && b === c) {
+    amount_earned = stake * (TRIPLE_MULTIPLIER[a] ?? 5) // drei Gleiche
+  } else if (a === b || b === c || a === c) {
+    amount_earned = stake // genau zwei Gleiche -> Einsatz zurück
+  }
 
   userState.balance += amount_earned - stake
   userState.total_spent += stake
   userState.total_win += amount_earned
-  return { pattern, amount_earned }
+  return {
+    reels,
+    amount_earned,
+    balance: userState.balance,
+    total_spent: userState.total_spent,
+    total_win: userState.total_win,
+  }
 }
 
 const adminUsers: AdminUserRow[] = [

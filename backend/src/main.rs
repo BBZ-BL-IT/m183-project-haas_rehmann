@@ -1,6 +1,11 @@
 mod app;
 mod auth;
+mod db;
+mod error;
+mod game;
 mod handlers;
+mod identity;
+mod models;
 mod routes;
 mod state;
 

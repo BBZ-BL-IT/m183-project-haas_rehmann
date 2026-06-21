@@ -1,0 +1,58 @@
+# =====================================================================
+#  Backend only – pulls the published image from Docker Hub and wires it
+#  to the infra stack (Postgres + Kanidm) for local testing.
+#
+#  Prerequisite: the infra stack is already running and provisioned:
+#     docker compose -f docker-compose.infra.yml up -d
+#
+#  Then:
+#     docker compose -f docker-compose.backend.yml up -d
+#
+#  The backend is reachable on http://localhost:8080 (e.g. GET /health).
+# =====================================================================
+
+name: casino-backend
+
+# Join the network created by the infra stack so we can reach `postgres`
+# and `kanidm` by name.
+networks:
+  casino_net:
+    name: casino_net
+    external: true
+
+services:
+  backend:
+    image: ${BACKEND_IMAGE:-changeme/grand-casino-backend:latest}
+    container_name: casino-backend
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      SERVER_PORT: "8080"
+      RUST_LOG: ${RUST_LOG:-info}
+
+      DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-m183_db}
+
+      # OIDC / Kanidm
+      OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-m183-backend}
+      OIDC_CLIENT_SECRET_FILE: /shared/oauth2_client_secret
+      OIDC_AUTH_ENDPOINT: ${KANIDM_PUBLIC_ORIGIN:-https://localhost:8443}/ui/oauth2
+      OIDC_TOKEN_ENDPOINT: ${KANIDM_ORIGIN:-https://kanidm:8443}/oauth2/token
+      OIDC_REDIRECT_URI: http://localhost:8080/auth/callback
+      OIDC_POST_LOGOUT_REDIRECT_URI: http://localhost:8080/
+      OIDC_CA_CERT: /shared/kanidm-ca.pem
+
+      # Roles: Kanidm puts the admin in group "casino_admins" (contains "admin").
+      OIDC_ROLE_CLAIMS: roles,groups,scopes,scope
+      OIDC_ADMIN_ROLE: admin
+
+      PRIVATE_COOKIE_KEY: ${PRIVATE_COOKIE_KEY:?set PRIVATE_COOKIE_KEY in .env}
+      SESSION_MAX_AGE: ${SESSION_MAX_AGE:-1440}
+
+      # Allow the Vite dev server (different origin) to call the API if needed.
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:5173}
+    volumes:
+      # Provides the OAuth2 client secret + Kanidm CA cert produced by infra.
+      - ./kanidm/secrets:/shared:ro
+    networks:
+      - casino_net

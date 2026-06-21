@@ -1,0 +1,6 @@
+# Local environment + generated secrets – never commit these.
+.env
+
+# Everything generated into kanidm/secrets/ at runtime, but keep the dir.
+kanidm/secrets/*
+!kanidm/secrets/.gitkeep
