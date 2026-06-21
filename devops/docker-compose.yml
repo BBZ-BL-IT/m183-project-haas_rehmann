@@ -156,7 +156,7 @@ services:
 
   # ----------------------------------------------------------------- Backend --
   backend:
-    image: ${BACKEND_IMAGE:-t1me0n/grand-casino-backend:latest}
+    image: ${BACKEND_IMAGE:-docker.io/t1me0n/grand-casino-backend:latest}
     container_name: casino-backend
     restart: unless-stopped
     depends_on:
@@ -193,7 +193,7 @@ services:
 
   # ---------------------------------------------------------------- Frontend --
   frontend:
-    image: ${FRONTEND_IMAGE:-t1me0n/grand-casino-frontend:latest}
+    image: ${FRONTEND_IMAGE:-docker.io/t1me0n/grand-casino-frontend:latest}
     container_name: casino-frontend
     restart: unless-stopped
     depends_on:
