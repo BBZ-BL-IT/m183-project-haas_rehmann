@@ -28,6 +28,9 @@ tower-http = { version = "0.7", features = ["fs", "cors", "trace"] }
 # Randomness for the slot reels
 rand = "0.9"
 
+# Timestamps (loan window / reset countdown)
+chrono = { version = "0.4", features = ["serde"] }
+
 # Database
 sqlx = { version = "0.9.0", features = [
 	"runtime-tokio",

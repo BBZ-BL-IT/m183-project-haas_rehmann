@@ -5,7 +5,7 @@ import type {
   AdminUpdateUserRequest,
   AdminUpdateUserResponse,
 } from '@/types'
-import { USE_MOCK, mockDelay, mockUserList, mockUpdateUser } from './mock'
+import { USE_MOCK, mockDelay, mockUserList, mockUpdateUser, mockDeleteUser } from './mock'
 
 export async function fetchUserList(): Promise<AdminUserListResponse> {
   // --- TEMPORÄRE TEST-DATEN ---
@@ -32,4 +32,15 @@ export async function updateUser(
     req,
   )
   return data
+}
+
+export async function deleteUser(id: number): Promise<void> {
+  // --- TEMPORÄRE TEST-DATEN ---
+  if (USE_MOCK) {
+    await mockDelay()
+    mockDeleteUser(id)
+    return
+  }
+  // --- PRODUKTION ---
+  await apiClient.post(endpoints.adminDeleteUser(id))
 }

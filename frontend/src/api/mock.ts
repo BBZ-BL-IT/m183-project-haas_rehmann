@@ -5,17 +5,15 @@
 //  Services feste Test-Daten aus dieser Datei. Gesteuert über das
 //  Env-Flag VITE_USE_MOCK (siehe .env.example).
 //
-//  >>> FÜR PRODUKTION: VITE_USE_MOCK=false setzen. Dann gehen alle
-//      Services über apiClient an das echte Backend, und Login/Logout
-//      laufen über den echten PKCE-Redirect zu Kanidm.
-//  >>> Diese ganze Datei kann am Ende gelöscht werden, sobald das
-//      Backend steht (zusammen mit den `if (USE_MOCK)`-Zweigen).
+//  >>> FÜR PRODUKTION: VITE_USE_MOCK=false setzen.
 // =====================================================================
 
 import type {
   UserInfo,
   SpinResponse,
   LoanResponse,
+  RegisterRequest,
+  RegisterResponse,
   AdminUserRow,
   AdminUserListResponse,
   AdminUpdateUserRequest,
@@ -27,17 +25,27 @@ export const USE_MOCK = import.meta.env.VITE_USE_MOCK === 'true'
 // künstliche Latenz, damit Lade-Zustände (Spinner etc.) sichtbar werden
 export const mockDelay = (ms = 400) => new Promise<void>((r) => setTimeout(r, ms))
 
+const LOANS_MAX = 3
+const LOANS_WINDOW = 86400
+
 // Veränderbarer In-Memory-Zustand, damit Aktionen "wirken" (bis Reload).
 const userState: UserInfo = {
-  appname: 'TestSpieler',
+  username: 'TestSpieler',
   roles: ['user', 'admin'], // admin drin, damit die Admin-View testbar ist
   balance: 5000,
-  loans_total_amount: 0,
-  loans_taken: 0,
-  loans_total_owed: 0,
   total_spent: 0,
-  total_win: 0,
+  total_profit: 0,
+  highest_win_streak: 0,
+  loans_taken: 0,
+  loans_value: 0,
+  loans_in_window: 0,
+  loans_max: LOANS_MAX,
+  loans_window_seconds: LOANS_WINDOW,
+  loans_reset_at: null,
 }
+
+// Mock-Win-Streak-Zähler.
+let currentStreak = 0
 
 export function getMockUser(): UserInfo {
   return { ...userState }
@@ -45,14 +53,19 @@ export function getMockUser(): UserInfo {
 
 export function mockTakeLoan(amount: number): LoanResponse {
   userState.balance += amount
-  userState.loans_total_amount += amount
+  userState.loans_value += amount
   userState.loans_taken += 1
-  userState.loans_total_owed += amount
+  userState.loans_in_window += 1
+  if (userState.loans_in_window >= userState.loans_max) {
+    userState.loans_reset_at = new Date(Date.now() + LOANS_WINDOW * 1000).toISOString()
+  }
   return {
     balance: userState.balance,
-    loans_total_amount: userState.loans_total_amount,
+    loans_value: userState.loans_value,
     loans_taken: userState.loans_taken,
-    loans_total_owed: userState.loans_total_owed,
+    loans_in_window: userState.loans_in_window,
+    loans_max: userState.loans_max,
+    loans_reset_at: userState.loans_reset_at,
   }
 }
 
@@ -78,22 +91,38 @@ export function mockSpin(stake: number): SpinResponse {
     amount_earned = stake // genau zwei Gleiche -> Einsatz zurück
   }
 
+  // Win-Streak: netto-positiver Spin zählt.
+  if (amount_earned > stake) {
+    currentStreak += 1
+    if (currentStreak > userState.highest_win_streak) userState.highest_win_streak = currentStreak
+  } else {
+    currentStreak = 0
+  }
+
   userState.balance += amount_earned - stake
   userState.total_spent += stake
-  userState.total_win += amount_earned
+  userState.total_profit += amount_earned - stake
   return {
     reels,
     amount_earned,
     balance: userState.balance,
     total_spent: userState.total_spent,
-    total_win: userState.total_win,
+    total_profit: userState.total_profit,
+    highest_win_streak: userState.highest_win_streak,
   }
 }
 
-const adminUsers: AdminUserRow[] = [
-  { id: 1, appname: 'TestSpieler', balance: 5000 },
-  { id: 2, appname: 'blabla', balance: 9092 },
-  { id: 3, appname: 'highroller', balance: 250000 },
+export function mockRegister(req: RegisterRequest): RegisterResponse {
+  return {
+    username: req.username,
+    reset_url: `https://localhost:8443/ui/reset?token=MOCK-${req.username}`,
+  }
+}
+
+let adminUsers: AdminUserRow[] = [
+  { id: 1, username: 'TestSpieler', balance: 5000, loans_value: 0, loans_taken: 0 },
+  { id: 2, username: 'blabla', balance: 9092, loans_value: 1000, loans_taken: 2 },
+  { id: 3, username: 'highroller', balance: 250000, loans_value: 50000, loans_taken: 9 },
 ]
 
 export function mockUserList(): AdminUserListResponse {
@@ -103,7 +132,13 @@ export function mockUserList(): AdminUserListResponse {
 export function mockUpdateUser(req: AdminUpdateUserRequest): AdminUpdateUserResponse {
   const row = adminUsers.find((u) => u.id === req.id)
   if (!row) throw new Error(`Mock: User ${req.id} nicht gefunden`)
-  row.appname = req.appname
+  if (req.username !== undefined) row.username = req.username
   if (req.balance !== undefined) row.balance = req.balance
-  return { appname: row.appname, balance: row.balance }
+  if (req.loans_value !== undefined) row.loans_value = req.loans_value
+  if (req.loans_taken !== undefined) row.loans_taken = req.loans_taken
+  return { ...row }
+}
+
+export function mockDeleteUser(id: number): void {
+  adminUsers = adminUsers.filter((u) => u.id !== id)
 }

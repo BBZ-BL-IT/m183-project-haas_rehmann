@@ -12,7 +12,7 @@ const auth = useAuthStore()
     <div v-if="auth.isLoading">Session wird geprüft …</div>
 
     <template v-else-if="auth.isAuthenticated">
-      <p>Willkommen zurück, <strong>{{ auth.user?.appname }}</strong>.</p>
+      <p>Willkommen zurück, <strong>{{ auth.user?.username }}</strong>.</p>
       <RouterLink to="/play" class="btn btn-primary">Zum Slot</RouterLink>
     </template>
 

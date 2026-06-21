@@ -73,7 +73,8 @@ async function handleSpin(): Promise<void> {
       auth.patchUser({
         balance: result.balance,
         total_spent: result.total_spent,
-        total_win: result.total_win,
+        total_profit: result.total_profit,
+        highest_win_streak: result.highest_win_streak,
       })
       isSpinning.value = false
     }, 600)

@@ -4,14 +4,20 @@
 export type Role = 'user' | 'admin'
 
 export interface UserInfo {
-  appname: string
+  username: string
   roles: Role[]
   balance: number
-  loans_total_amount: number
-  loans_taken: number
-  loans_total_owed: number
+  // --- Stats ---
   total_spent: number
-  total_win: number
+  total_profit: number // kann negativ sein
+  highest_win_streak: number
+  loans_taken: number // Lebenszeit-Anzahl
+  loans_value: number // offener/geschuldeter Betrag
+  // --- Kredit-Limit ---
+  loans_in_window: number // Anzahl im aktuellen Fenster
+  loans_max: number
+  loans_window_seconds: number
+  loans_reset_at: string | null // RFC3339; wann der nächste Slot frei wird (null = unter Limit)
 }
 
 // POST /spin
@@ -27,42 +33,61 @@ export interface SpinRequest {
 export interface SpinResponse {
   reels: number[] // genau 3 Zahlen (Symbole 1..7)
   amount_earned: number // Brutto-Gewinn (0 bei Niete)
-  // Autoritative Werte nach dem Spin, damit das Frontend Server-Wahrheit
-  // anzeigt statt lokal zu rechnen.
+  // Autoritative Werte nach dem Spin.
   balance: number
   total_spent: number
-  total_win: number
+  total_profit: number
+  highest_win_streak: number
 }
 
 // POST /loan/{amount}  (amount steckt im URL-Pfad)
 export interface LoanResponse {
   balance: number
-  loans_total_amount: number
+  loans_value: number
   loans_taken: number
-  loans_total_owed: number
+  loans_in_window: number
+  loans_max: number
+  loans_reset_at: string | null
+}
+
+// POST /register
+export interface RegisterRequest {
+  username: string
+}
+
+export interface RegisterResponse {
+  username: string
+  reset_url: string
 }
 
 // GET /admin/userlist
 export interface AdminUserRow {
   id: number
-  appname: string
+  username: string
   balance: number
+  loans_value: number
+  loans_taken: number
 }
 
 export interface AdminUserListResponse {
   users: AdminUserRow[]
 }
 
-// POST /admin/update/user
+// POST /admin/update/user  (nur gesetzte Felder werden geändert)
 export interface AdminUpdateUserRequest {
   id: number
-  appname: string
-  balance?: number  // optional, das Projektantrag-Dokument sagt admin darf auch Guthaben anpassen
+  username?: string
+  balance?: number
+  loans_value?: number
+  loans_taken?: number
 }
 
 export interface AdminUpdateUserResponse {
-  appname: string
+  id: number
+  username: string
   balance: number
+  loans_value: number
+  loans_taken: number
 }
 
 // API-Fehlerformat. Falls dein Backend ein anderes Format liefert (z.B. `{ message }`), hier anpassen.
