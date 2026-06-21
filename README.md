@@ -141,7 +141,7 @@ Zusätzlich vom OIDC-Layer bereitgestellt (siehe Abschnitt Abhängigkeiten):
 | ------- | ---------------- | --------------------------------------------------- |
 | GET     | `/auth`          | startet den OAuth2/OIDC-Login (PKCE-Redirect)       |
 | GET     | `/auth/callback` | OAuth2-Redirect-Ziel, tauscht Code gegen Token      |
-| GET     | `/auth/logout`   | beendet die Session und leitet zum Provider weiter  |
+| GET     | `/auth/logout`   | beendet die lokale Session (Cookie + Cache), Kanidm-SSO bleibt aktiv |
 
 ### DTOs (Datenstruktur)
 
@@ -374,27 +374,26 @@ Admin. `require_admin()` ist der Guard für Admin-Handler.
   (`/spin`, `/loan`, `/admin/*`), ein separates CSRF-Token ist deshalb nicht
   nötig.
 
-### Logout (RP-initiated / Single Logout)
+### Logout (nur lokal)
 
-**Problem:** Ein reines lokales Logout löscht nur das Backend-Cookie und die
-Server-Session, beendet aber **nicht** die SSO-Session bei Kanidm. Beim nächsten
-`/auth` sieht Kanidm die noch offene Session und meldet ohne Passwortabfrage
-automatisch den vorherigen Benutzer wieder an. Das Cookie ist `HttpOnly` und
-kann daher auch nicht clientseitig per JavaScript entfernt werden.
+Das Backend nutzt den `DefaultLogoutHandler` der Crate (`backend/src/app.rs`).
+Beim Aufruf von `/auth/logout`
 
-**Lösung:** Das Backend nutzt den `OidcLogoutHandler` der Crate (statt
-`DefaultLogoutHandler`), sobald `OIDC_END_SESSION_ENDPOINT` gesetzt ist
-(`backend/src/app.rs`). Dieser Handler
-
-1. invalidiert die Server-Session im Cache,
+1. invalidiert er die Server-Session im Cache,
 2. löscht das Session-Cookie (`Set-Cookie` mit Ablauf),
-3. leitet den Browser an Kanidms End-Session-Endpoint weiter (mit
-   `id_token_hint` + `post_logout_redirect_uri`), sodass **auch Kanidm** die
-   SSO-Session beendet und der Benutzer am Ende wieder auf der App landet.
+3. leitet den Browser auf `post_logout_redirect_uri` (App-Origin) zurück.
 
-Ohne gesetzten Endpoint fällt das Backend auf das lokale Logout zurück (mit
-Warnung im Log). Wichtig: Die `post_logout_redirect_uri` (App-Origin) muss beim
-Kanidm-OAuth2-Client als erlaubte Logout-Redirect-URL registriert sein.
+**Bewusst lokal:** Die SSO-Session bei Kanidm wird dabei **nicht** beendet. Ein
+anschliessender Login (`/auth`) trifft daher auf die noch offene Kanidm-Session
+und kann ohne erneute Passwortabfrage sofort denselben Benutzer wieder anmelden
+(Single Sign-On). Das ist hier das gewünschte Verhalten.
+
+> Hinweis: Das Session-Cookie ist `HttpOnly` und kann deshalb nicht
+> clientseitig per JavaScript gelöscht werden – das Aufräumen der Session
+> passiert ausschliesslich serverseitig im Logout-Handler. Soll sich ein
+> Benutzer komplett (auch bei Kanidm) abmelden, müsste auf ein RP-initiated
+> Logout (`OidcLogoutHandler` + Kanidm-End-Session-Endpoint) umgestellt werden;
+> das ist in diesem Projekt bewusst nicht aktiv.
 
 ### HTTP-Security-Header & CSP
 
@@ -507,9 +506,9 @@ npm run type-check   # vue-tsc
 ## Konfiguration
 
 - **Backend** – `backend/.env.example` dokumentiert jede Variable: Datenbank-URL,
-  OIDC-Endpoints/-Secrets (inkl. `OIDC_END_SESSION_ENDPOINT` für das
-  RP-initiated Logout), Session-/Cookie-Einstellungen und die **Kreditregeln**
-  (`LOAN_MAX_PER_WINDOW`, `LOAN_WINDOW_SECONDS`, `LOAN_MAX_AMOUNT`).
+  OIDC-Endpoints/-Secrets, Session-/Cookie-Einstellungen und die
+  **Kreditregeln** (`LOAN_MAX_PER_WINDOW`, `LOAN_WINDOW_SECONDS`,
+  `LOAN_MAX_AMOUNT`).
 - **Frontend** – `frontend/.env.example`: API-Basis-URL, OIDC-Login-/Logout-Pfade
   und das `VITE_USE_MOCK`-Flag.
 - **Stack** – `devops/.env.example`: Postgres-Zugangsdaten, Kanidm-Origin und der
