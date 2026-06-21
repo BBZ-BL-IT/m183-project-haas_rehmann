@@ -8,14 +8,15 @@ devops/
 ├── .env.example                 # copy to .env and edit
 ├── docker-compose.yml           # ⭐ everything (postgres + kanidm + backend + frontend)
 ├── docker-compose.infra.yml     # postgres + kanidm only
-├── docker-compose.backend.yml   # backend only (built locally / or pulled)
-├── docker-compose.frontend.yml  # frontend only (built locally / or pulled)
+├── docker-compose.backend.yml   # backend only (Docker Hub image)
+├── docker-compose.frontend.yml  # frontend only (Docker Hub image)
 ├── podman-up.sh                 # staged bring-up for podman (see below)
 └── kanidm/
     ├── server.toml              # kanidm server config
-    ├── cert.sh                  # one-shot: generate TLS cert (pre-server)
-    ├── recover.sh               # one-shot: recover idm_admin (post-server)
+    ├── gen-cert.sh              # one-shot: multi-SAN TLS cert (localhost + kanidm)
+    ├── recover.sh               # one-shot: recover idm_admin
     ├── provision.sh             # one-shot: groups / users / oauth2 client
+    ├── demo-passwords.sh        # one-shot: ready-to-use demo passwords
     └── secrets/                 # generated at runtime (git-ignored)
 ```
 
@@ -27,20 +28,13 @@ devops/
 - A container engine. Both are in the project `flake.nix`:
   - **podman** + **podman-compose** (rootless, no daemon — recommended here), or
   - **docker** + the compose plugin (the Docker daemon must be running).
-- Add the Kanidm hostname to your hosts file so the **browser** can reach it at
-  the same URL the backend uses:
-
-  ```sh
-  echo "127.0.0.1 kanidm" | sudo tee -a /etc/hosts
-  ```
-
 - Configuration:
 
   ```sh
   cd devops
   cp .env.example .env
   # edit .env: set a strong PRIVATE_COOKIE_KEY  (openssl rand -base64 64)
-  # Images are built locally by default — no Docker Hub account needed.
+  # Images are pulled from Docker Hub (t1me0n/grand-casino-*).
   ```
 
 - Rootless podman needs a `policy.json` and `registries.conf` (usually already
@@ -108,15 +102,15 @@ The partial stacks share the Docker/podman network `casino_net` created by the
 infra stack. Start the infra **first**:
 
 ```sh
-# podman (--build builds the image from source the first time)
+# podman
 ./podman-up.sh docker-compose.infra.yml
-podman-compose -f docker-compose.backend.yml up -d --build
-podman-compose -f docker-compose.frontend.yml up -d --build
+podman-compose -f docker-compose.backend.yml up -d
+podman-compose -f docker-compose.frontend.yml up -d
 
 # docker
 docker compose -f docker-compose.infra.yml up -d
-docker compose -f docker-compose.backend.yml up -d --build
-docker compose -f docker-compose.frontend.yml up -d --build
+docker compose -f docker-compose.backend.yml up -d
+docker compose -f docker-compose.frontend.yml up -d
 ```
 
 - `docker-compose.backend.yml` reads the OAuth2 client secret and Kanidm CA
@@ -144,12 +138,17 @@ static musl busybox into `kanidm/secrets/` first; the shell scripts then run
 inside the kanidm images via that busybox. The ordered one-shots are:
 
 ```
-busybox-init  → stage static busybox + applet symlinks
-kanidm-cert   → kanidmd cert-generate  (offline, before the server)
-kanidm        → kanidmd server         (long-running)
-kanidm-recover→ kanidmd recover-account idm_admin  (online, via /data/kanidmd.sock)
+busybox-init     → stage static busybox + applet symlinks
+kanidm-cert      → openssl: multi-SAN cert (localhost + kanidm), before the server
+kanidm           → kanidmd server (long-running)
+kanidm-recover   → kanidmd recover-account idm_admin (online, via /data/kanidmd.sock)
 kanidm-provision → kanidm CLI: groups, persons, oauth2 client, scope/claim maps
+kanidm-demo-passwords → set ready-to-use demo account passwords
 ```
+
+Kanidm uses `localhost` as its origin (the browser reaches it at
+`https://localhost:8443`), while the backend reaches it internally as `kanidm`;
+the generated cert covers both names, so no `/etc/hosts` entry is needed.
 
 ## 6. Useful commands & notes
 
@@ -173,16 +172,13 @@ podman exec casino-kanidm /sbin/kanidmd recover-account <name> -c /data/server.t
   honours `condition: service_completed_successfully` natively, so
   `docker compose up -d` just works.
 - **Self-signed certificate**: the browser warns the first time you hit
-  `https://kanidm:8443`. Accept it. The backend trusts it via `OIDC_CA_CERT`
-  (`kanidm/secrets/kanidm-ca.pem`, the exported Kanidm CA).
-- **`kanidm` doesn't resolve in the browser**: you forgot the `/etc/hosts`
-  entry (`127.0.0.1 kanidm`).
+  `https://localhost:8443`. Accept it. The backend trusts it via `OIDC_CA_CERT`
+  (`kanidm/secrets/kanidm-ca.pem`, the dev CA).
 - **Kanidm CLI version**: `provision.sh` targets the Kanidm 1.10 CLI from the
   `kanidm/tools:latest` image (`--config-path`, `--ttl`, online `recover-account`
   via the admin socket). If you pin a different Kanidm version and a step fails,
   check `podman logs casino-kanidm-provision` — the script tolerates
   "already exists", so it is safe to adjust and re-run.
-- **Images**: built locally from `../backend` and `../frontend` by default
-  (`grand-casino-backend:local` / `grand-casino-frontend:local`). The GitHub
-  workflows in `.github/workflows/` also build and push them to Docker Hub; set
-  `BACKEND_IMAGE`/`FRONTEND_IMAGE` in `.env` to pull those instead of building.
+- **Images**: pulled from Docker Hub (`t1me0n/grand-casino-{backend,frontend}`),
+  built and pushed by the GitHub workflows in `.github/workflows/`. Override with
+  `BACKEND_IMAGE`/`FRONTEND_IMAGE` in `.env`.

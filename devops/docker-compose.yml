@@ -152,10 +152,7 @@ services:
 
   # ----------------------------------------------------------------- Backend --
   backend:
-    # Built locally by default; override BACKEND_IMAGE to pull a published image.
-    image: ${BACKEND_IMAGE:-grand-casino-backend:local}
-    build:
-      context: ../backend
+    image: ${BACKEND_IMAGE:-t1me0n/grand-casino-backend:latest}
     container_name: casino-backend
     restart: unless-stopped
     depends_on:
@@ -192,10 +189,7 @@ services:
 
   # ---------------------------------------------------------------- Frontend --
   frontend:
-    # Built locally by default; override FRONTEND_IMAGE to pull a published image.
-    image: ${FRONTEND_IMAGE:-grand-casino-frontend:local}
-    build:
-      context: ../frontend
+    image: ${FRONTEND_IMAGE:-t1me0n/grand-casino-frontend:latest}
     container_name: casino-frontend
     restart: unless-stopped
     depends_on:

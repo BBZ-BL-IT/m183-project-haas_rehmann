@@ -11,7 +11,7 @@ const isLoading = ref(false)
 const errorMsg = ref<string | null>(null)
 const successMsg = ref<string | null>(null)
 
-// tickt jede Sekunde, damit der Countdown live runterläuft
+// ticks every second so the countdown updates live
 const now = ref(Date.now())
 const timer = window.setInterval(() => (now.value = Date.now()), 1000)
 onUnmounted(() => window.clearInterval(timer))
@@ -20,7 +20,7 @@ const maxLoans = computed(() => auth.user?.loans_max ?? 3)
 const usedLoans = computed(() => auth.user?.loans_in_window ?? 0)
 const remainingLoans = computed(() => Math.max(0, maxLoans.value - usedLoans.value))
 
-// Sekunden bis das Limit wieder einen Slot freigibt (oder 0).
+// Seconds until the limit frees a slot again (or 0).
 const resetInSeconds = computed(() => {
   const at = auth.user?.loans_reset_at
   if (!at) return 0

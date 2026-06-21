@@ -1,22 +1,8 @@
 #!/bin/sh
-# =====================================================================
-#  Kanidm provisioning (one-shot, kanidm/tools image, runs AFTER idm_admin has
-#  been recovered). Logs in as idm_admin and declaratively creates:
-#
-#    - groups:   casino_admins, casino_users
-#    - persons:  $KANIDM_ADMIN_ACCOUNT (admin), $KANIDM_USER_ACCOUNT (user)
-#    - an OAuth2 confidential client "m183-backend" with:
-#        * redirect URLs for the combined (8081) and direct (8080) setups
-#        * scope maps (openid profile email groups)
-#        * a "roles" claim map: casino_admins -> admin, casino_users -> user
-#
-#  Outputs written to /shared (host ./kanidm/secrets):
-#    - oauth2_client_secret  : the backend's OIDC_CLIENT_SECRET
-#    - reset-links.txt       : credential-reset URLs to set the demo passwords
-#
-#  Runs via the static busybox staged by `busybox-init`. All "create" steps
-#  tolerate "already exists" so re-running is safe.
-# =====================================================================
+# Provision Kanidm as idm_admin: groups (casino_admins/casino_users), the two
+# demo persons, and the OAuth2 client "m183-backend" (redirect URLs, scope maps,
+# and a "roles" claim map). Writes the client secret to /shared. Idempotent:
+# "create" steps tolerate "already exists".
 set -eu
 export PATH="/shared/bin:/sbin:/usr/sbin:/bin:/usr/bin"
 

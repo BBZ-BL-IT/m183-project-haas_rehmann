@@ -1,9 +1,3 @@
-//! Application error type and its mapping to HTTP responses.
-//!
-//! Every handler returns `Result<_, AppError>`. The error is rendered as a JSON
-//! body `{ "error": <code>, "message": <human readable> }`, which matches the
-//! `ApiError` shape the Vue frontend expects (`toApiError` reads `message`).
-
 use axum::{
     Json,
     http::StatusCode,
@@ -13,17 +7,11 @@ use serde_json::json;
 
 #[derive(Debug)]
 pub enum AppError {
-    /// 400 – the request itself was malformed (e.g. invalid loan amount).
     BadRequest(String),
-    /// 401 – no valid session / the OIDC token could not be read.
     Unauthorized(String),
-    /// 403 – authenticated, but missing the required role.
     Forbidden(String),
-    /// 404 – the referenced resource does not exist.
     NotFound(String),
-    /// 429 – a rate/quota limit was hit (e.g. more than 3 loans per day).
     TooManyRequests(String),
-    /// 500 – anything unexpected (database failures, etc.).
     Internal(String),
 }
 

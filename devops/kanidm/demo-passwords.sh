@@ -1,17 +1,7 @@
 #!/bin/sh
-# =====================================================================
-#  Set ready-to-use passwords for the demo accounts (one-shot, kanidm/server
-#  image, runs AFTER provisioning created the persons).
-#
-#  Kanidm by design won't let you set a chosen password for a person over the
-#  API (you'd use the browser credential-reset flow). For a turn-key local demo
-#  we instead use `kanidmd recover-account`, which sets a fresh random password
-#  and prints it — we capture those and write them to
-#  /shared/demo-credentials.txt so the accounts are immediately usable.
-#
-#  Runs via the static busybox staged by `busybox-init`, sharing the kanidm_data
-#  volume (recover-account talks to the running server over /data/kanidmd.sock).
-# =====================================================================
+# Give the demo accounts ready-to-use passwords. Kanidm won't set a chosen
+# password over the API, so we use `recover-account` (random password, printed)
+# and write the results to /shared/demo-credentials.txt.
 set -eu
 export PATH="/shared/bin:/sbin:/usr/sbin:/bin:/usr/bin"
 

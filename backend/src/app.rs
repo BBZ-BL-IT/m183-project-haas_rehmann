@@ -26,8 +26,7 @@ pub async fn run() -> anyhow::Result<()> {
         .connect(&database_url)
         .await?;
 
-    // Apply pending migrations on startup (embedded into the binary at compile
-    // time, so the Docker image doesn't need the SQL files at runtime).
+    // Apply pending migrations on startup 
     migrate!("./migrations").run(&pool).await?;
     info!("Database migrations applied");
 
@@ -65,13 +64,6 @@ pub async fn run() -> anyhow::Result<()> {
     Ok(())
 }
 
-/// Build a CORS layer from `CORS_ALLOWED_ORIGINS` (comma separated). Returns
-/// `None` when unset, which is the right default for a same-origin deployment
-/// (frontend served behind the same host, or reverse-proxied to the backend).
-///
-/// When the frontend runs on a *different* origin (e.g. the Vite dev server on
-/// `http://localhost:5173`), set the variable so the browser is allowed to send
-/// the session cookie with credentials.
 fn build_cors() -> Option<CorsLayer> {
     let raw = std::env::var("CORS_ALLOWED_ORIGINS").ok()?;
     let origins: Vec<HeaderValue> = raw

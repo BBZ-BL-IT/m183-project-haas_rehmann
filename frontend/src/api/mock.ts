@@ -1,12 +1,4 @@
-// =====================================================================
-//  TEMPORÄRER MOCK-LAYER  —  NUR FÜR DEV OHNE BACKEND
-// ---------------------------------------------------------------------
-//  Solange Backend + Kanidm (PKCE) noch nicht laufen, liefern die
-//  Services feste Test-Daten aus dieser Datei. Gesteuert über das
-//  Env-Flag VITE_USE_MOCK (siehe .env.example).
-//
-//  >>> FÜR PRODUKTION: VITE_USE_MOCK=false setzen.
-// =====================================================================
+// In-memory mock data layer for dev without a backend (VITE_USE_MOCK=true).
 
 import type {
   UserInfo,
@@ -20,16 +12,14 @@ import type {
 
 export const USE_MOCK = import.meta.env.VITE_USE_MOCK === 'true'
 
-// künstliche Latenz, damit Lade-Zustände (Spinner etc.) sichtbar werden
 export const mockDelay = (ms = 400) => new Promise<void>((r) => setTimeout(r, ms))
 
 const LOANS_MAX = 3
 const LOANS_WINDOW = 86400
 
-// Veränderbarer In-Memory-Zustand, damit Aktionen "wirken" (bis Reload).
 const userState: UserInfo = {
   username: 'TestSpieler',
-  roles: ['user', 'admin'], // admin drin, damit die Admin-View testbar ist
+  roles: ['user', 'admin'],
   balance: 5000,
   total_spent: 0,
   total_profit: 0,
@@ -67,7 +57,7 @@ export function mockTakeLoan(amount: number): LoanResponse {
   }
 }
 
-// Spiegelt die Backend-Logik (game.rs): 3 Walzen, gestaffelte Auszahlung.
+// Mirrors the backend payout logic (game.rs).
 const TRIPLE_MULTIPLIER: Record<number, number> = {
   7: 50,
   6: 25,
@@ -84,12 +74,11 @@ export function mockSpin(stake: number): SpinResponse {
 
   let amount_earned = 0
   if (a === b && b === c) {
-    amount_earned = stake * (TRIPLE_MULTIPLIER[a] ?? 5) // drei Gleiche
+    amount_earned = stake * (TRIPLE_MULTIPLIER[a] ?? 5)
   } else if (a === b || b === c || a === c) {
-    amount_earned = stake // genau zwei Gleiche -> Einsatz zurück
+    amount_earned = stake
   }
 
-  // Win-Streak: netto-positiver Spin zählt.
   if (amount_earned > stake) {
     currentStreak += 1
     if (currentStreak > userState.highest_win_streak) userState.highest_win_streak = currentStreak

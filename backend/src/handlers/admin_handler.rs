@@ -1,6 +1,3 @@
-//! Admin-only handlers. Every handler re-checks the admin role from the live
-//! OIDC token (`Identity::require_admin`).
-
 use axum::{Json, extract::Path, extract::State};
 use axum_oidc_client::auth_session::AuthSession;
 
@@ -13,7 +10,6 @@ use crate::models::{
 use crate::state::AppState;
 use crate::validate;
 
-/// `GET /admin/userlist` – list every user (admin only).
 pub async fn list_users(
     State(state): State<AppState>,
     session: AuthSession,
@@ -35,7 +31,6 @@ pub async fn list_users(
     Ok(Json(AdminUserListResponse { users }))
 }
 
-/// `POST /admin/update/user` – edit username / balance / open loans.
 pub async fn update_user(
     State(state): State<AppState>,
     session: AuthSession,
@@ -85,7 +80,6 @@ pub async fn update_user(
     }))
 }
 
-/// `POST /admin/delete/user/{id}` – delete a user and all their data.
 pub async fn delete_user(
     State(state): State<AppState>,
     session: AuthSession,
