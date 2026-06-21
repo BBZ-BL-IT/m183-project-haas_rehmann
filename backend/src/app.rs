@@ -1,8 +1,8 @@
 use axum::http::{HeaderValue, Method, header};
 use axum_oidc_client::{
-    auth::{AuthenticationLayer, LogoutHandler},
+    auth::AuthenticationLayer,
     cache::{TwoTierAuthCache, config::TwoTierCacheConfig},
-    logout::{handle_default_logout::DefaultLogoutHandler, handle_oidc_logout::OidcLogoutHandler},
+    logout::handle_default_logout::DefaultLogoutHandler,
 };
 use sqlx::{migrate, postgres::PgPoolOptions};
 use std::sync::Arc;
@@ -32,23 +32,10 @@ pub async fn run() -> anyhow::Result<()> {
 
     let auth_cache = Arc::new(TwoTierAuthCache::new(None, TwoTierCacheConfig::default())?);
 
-    // RP-initiated logout: if the IdP's end-session endpoint is configured, also
-    // tear down the *Kanidm* SSO session on logout (sends the browser there with
-    // an id_token_hint). Without this, the local cookie is cleared but Kanidm's
-    // session survives, so the next /auth silently logs the previous user back in.
-    let logout_handler: Arc<dyn LogoutHandler> = match std::env::var("OIDC_END_SESSION_ENDPOINT") {
-        Ok(endpoint) if !endpoint.trim().is_empty() => {
-            info!("RP-initiated (OIDC) logout enabled via {}", endpoint.trim());
-            Arc::new(OidcLogoutHandler::new(endpoint.trim()))
-        }
-        _ => {
-            warn!(
-                "OIDC_END_SESSION_ENDPOINT not set — using local-only logout; the IdP session \
-                 persists and the next login may skip the password prompt"
-            );
-            Arc::new(DefaultLogoutHandler)
-        }
-    };
+    // Local-only logout: clears the backend session + cookie but intentionally
+    // does NOT end the Kanidm SSO session, so a subsequent login can resume the
+    // existing IdP session without a fresh password prompt.
+    let logout_handler = Arc::new(DefaultLogoutHandler);
 
     let app_state = AppState::new(pool, crate::config::LoanConfig::from_env());
 
