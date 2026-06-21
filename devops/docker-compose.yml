@@ -27,7 +27,7 @@ volumes:
 services:
   # ---------------------------------------------------------------- Postgres --
   postgres:
-    image: postgres:17-alpine
+    image: docker.io/library/postgres:17-alpine
     container_name: casino-postgres
     restart: unless-stopped
     environment:
@@ -41,7 +41,11 @@ services:
     networks:
       - casino_net
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-m183_db}"]
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-m183_db}",
+        ]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -50,7 +54,7 @@ services:
   # The kanidm images are distroless (no shell). Stage a static busybox so the
   # bootstrap/provision shell scripts can run inside them.
   busybox-init:
-    image: busybox:musl
+    image: docker.io/library/busybox:musl
     container_name: casino-busybox-init
     command:
       - sh
@@ -80,7 +84,7 @@ services:
       - casino_net
 
   kanidm:
-    image: kanidm/server:latest
+    image: docker.io/kanidm/server:latest
     container_name: casino-kanidm
     restart: unless-stopped
     command: ["/sbin/kanidmd", "server", "-c", "/data/server.toml"]
@@ -97,7 +101,7 @@ services:
       - casino_net
 
   kanidm-recover:
-    image: kanidm/server:latest
+    image: docker.io/kanidm/server:latest
     container_name: casino-kanidm-recover
     entrypoint: ["/shared/busybox", "sh", "/recover.sh"]
     depends_on:
@@ -112,7 +116,7 @@ services:
       - casino_net
 
   kanidm-provision:
-    image: kanidm/tools:latest
+    image: docker.io/kanidm/tools:latest
     container_name: casino-kanidm-provision
     entrypoint: ["/shared/busybox", "sh", "/provision.sh"]
     environment:
@@ -133,7 +137,7 @@ services:
   # One-shot: set ready-to-use passwords for the demo accounts -> writes
   # kanidm/secrets/demo-credentials.txt.
   kanidm-demo-passwords:
-    image: kanidm/server:latest
+    image: docker.io/kanidm/server:latest
     container_name: casino-kanidm-demo-passwords
     entrypoint: ["/shared/busybox", "sh", "/demo-passwords.sh"]
     environment:
