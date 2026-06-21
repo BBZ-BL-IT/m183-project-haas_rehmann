@@ -9,15 +9,13 @@ use axum::{
     routing::{get, post},
 };
 
-use crate::handlers::{admin_handler, register_handler, slot_handler, user_handler};
+use crate::handlers::{admin_handler, slot_handler, user_handler};
 use crate::state::AppState;
 
 pub fn create_router(state: AppState) -> Router {
     Router::new()
         // Liveness probe for docker-compose / orchestration health checks.
         .route("/health", get(|| async { "ok" }))
-        // Public registration (no session needed)
-        .route("/register", post(register_handler::register))
         // User
         .route("/user/info", get(user_handler::get_user_info))
         .route("/loan/{amount}", post(user_handler::take_loan))

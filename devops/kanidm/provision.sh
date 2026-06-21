@@ -108,25 +108,6 @@ else
     echo "[provision] WARNING: could not read the client secret automatically." >&2
 fi
 
-# --- Registration service account ---------------------------------------------
-# The backend's /register endpoint creates Kanidm persons with this account's
-# API token. It needs people + group admin rights.
-echo "[provision] Creating registration service account..."
-try kanidm service-account create casino-registrar "Casino Registrar" idm_admins
-try kanidm group add-members idm_people_admins casino-registrar
-try kanidm group add-members idm_group_admins casino-registrar
-
-echo "[provision] Generating registrar API token..."
-TOKEN_OUT="$(kanidm service-account api-token generate --readwrite casino-registrar backend 2>/dev/null)"
-REG_TOKEN="$(printf '%s' "$TOKEN_OUT" | grep -oE '[A-Za-z0-9_-]{30,}\.[A-Za-z0-9_.-]+' | head -n1)"
-if [ -n "$REG_TOKEN" ]; then
-    printf '%s' "$REG_TOKEN" > "$SHARED/registrar_token"
-    chmod 644 "$SHARED/registrar_token"
-    echo "[provision] Registrar token written to $SHARED/registrar_token"
-else
-    echo "[provision] WARNING: could not capture the registrar token." >&2
-fi
-
 # --- Credential reset links for the demo accounts -----------------------------
 # Kanidm (by design) does not let us set a raw password for a person over the
 # API; instead we mint a reset token. Open the printed URL to set the password.

@@ -92,13 +92,6 @@ ready-made credentials above.)
 | `rehmann_user`   | `casino_users`  | `user`      |                                                 |
 | `idm_admin`      | –               | (kanidm)    | recovered password in `kanidm/secrets/idm_admin.password` |
 
-### Registration
-
-New users can self-register at <http://localhost:8081/register>: the backend
-creates a Kanidm person (via the provisioned `casino-registrar` service-account
-token) and returns a credential-reset link to set a password. Usernames are
-validated (lowercase, ≤20 chars, `a-z 0-9 . _ -`).
-
 ### Open the app
 
 - Frontend: <http://localhost:8081>

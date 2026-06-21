@@ -12,8 +12,6 @@ import type {
   UserInfo,
   SpinResponse,
   LoanResponse,
-  RegisterRequest,
-  RegisterResponse,
   AdminUserRow,
   AdminUserListResponse,
   AdminUpdateUserRequest,
@@ -109,13 +107,6 @@ export function mockSpin(stake: number): SpinResponse {
     total_spent: userState.total_spent,
     total_profit: userState.total_profit,
     highest_win_streak: userState.highest_win_streak,
-  }
-}
-
-export function mockRegister(req: RegisterRequest): RegisterResponse {
-  return {
-    username: req.username,
-    reset_url: `https://localhost:8443/ui/reset?token=MOCK-${req.username}`,
   }
 }
 
