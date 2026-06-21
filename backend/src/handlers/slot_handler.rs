@@ -34,14 +34,16 @@ pub async fn spin(
     )
     .await?;
 
-    // Roll first, then settle. `record_spin` enforces the affordability check
-    // inside the transaction, so the stake can never overdraw the balance.
     let outcome = game::play(req.stake_amount);
+    // A "win" for the streak is a net-positive spin.
+    let won = outcome.amount_earned > req.stake_amount;
+
     let result = db::record_spin(
         pool,
         user.id,
         req.stake_amount,
         outcome.amount_earned,
+        won,
         &outcome.reels,
     )
     .await?;
@@ -51,6 +53,7 @@ pub async fn spin(
         amount_earned: outcome.amount_earned,
         balance: result.balance,
         total_spent: result.total_spent,
-        total_win: result.total_win,
+        total_profit: result.total_profit,
+        highest_win_streak: result.highest_win_streak,
     }))
 }

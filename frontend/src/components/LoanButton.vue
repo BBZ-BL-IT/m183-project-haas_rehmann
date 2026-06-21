@@ -1,28 +1,48 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onUnmounted, ref } from 'vue'
 import { takeLoan } from '@/api/user'
 import { toApiError } from '@/api/client'
 import { useAuthStore } from '@/stores'
 
 const auth = useAuthStore()
 
-const MAX_AMOUNT = 10000
-const MAX_LOANS_PER_DAY = 3
-
 const amount = ref(1000)
 const isLoading = ref(false)
 const errorMsg = ref<string | null>(null)
 const successMsg = ref<string | null>(null)
 
-const remainingLoans = computed(() => {
-  if (!auth.user) return 0
-  return Math.max(0, MAX_LOANS_PER_DAY - auth.user.loans_taken)
+// tickt jede Sekunde, damit der Countdown live runterläuft
+const now = ref(Date.now())
+const timer = window.setInterval(() => (now.value = Date.now()), 1000)
+onUnmounted(() => window.clearInterval(timer))
+
+const maxLoans = computed(() => auth.user?.loans_max ?? 3)
+const usedLoans = computed(() => auth.user?.loans_in_window ?? 0)
+const remainingLoans = computed(() => Math.max(0, maxLoans.value - usedLoans.value))
+
+// Sekunden bis das Limit wieder einen Slot freigibt (oder 0).
+const resetInSeconds = computed(() => {
+  const at = auth.user?.loans_reset_at
+  if (!at) return 0
+  return Math.max(0, Math.floor((new Date(at).getTime() - now.value) / 1000))
 })
+
+const countdown = computed(() => {
+  const s = resetInSeconds.value
+  if (s <= 0) return ''
+  const h = Math.floor(s / 3600)
+  const m = Math.floor((s % 3600) / 60)
+  const sec = s % 60
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return h > 0 ? `${h}:${pad(m)}:${pad(sec)}` : `${pad(m)}:${pad(sec)}`
+})
+
+const limitReached = computed(() => remainingLoans.value <= 0)
 
 const canRequest = computed(() => {
   if (!auth.user || isLoading.value) return false
-  if (amount.value <= 0 || amount.value > MAX_AMOUNT) return false
-  return remainingLoans.value > 0
+  if (amount.value <= 0) return false
+  return !limitReached.value
 })
 
 async function requestLoan(): Promise<void> {
@@ -35,9 +55,11 @@ async function requestLoan(): Promise<void> {
     const result = await takeLoan(amount.value)
     auth.patchUser({
       balance: result.balance,
-      loans_total_amount: result.loans_total_amount,
+      loans_value: result.loans_value,
       loans_taken: result.loans_taken,
-      loans_total_owed: result.loans_total_owed,
+      loans_in_window: result.loans_in_window,
+      loans_max: result.loans_max,
+      loans_reset_at: result.loans_reset_at,
     })
     successMsg.value = `Kredit über ${amount.value} aufgenommen.`
   } catch (err) {
@@ -51,18 +73,14 @@ async function requestLoan(): Promise<void> {
 <template>
   <div class="loan-card">
     <h3>Kredit aufnehmen</h3>
-    <p class="info">
-      {{ remainingLoans }} von {{ MAX_LOANS_PER_DAY }} Krediten heute übrig.
-      Max. {{ MAX_AMOUNT }} pro Kredit.
-    </p>
+    <p class="info">{{ remainingLoans }} von {{ maxLoans }} Krediten übrig.</p>
 
     <div class="form">
       <input
         v-model.number="amount"
         type="number"
         :min="1"
-        :max="MAX_AMOUNT"
-        :disabled="isLoading || remainingLoans === 0"
+        :disabled="isLoading || limitReached"
         class="amount-input"
       />
       <button class="loan-btn" :disabled="!canRequest" @click="requestLoan">
@@ -70,6 +88,9 @@ async function requestLoan(): Promise<void> {
       </button>
     </div>
 
+    <div v-if="limitReached && countdown" class="msg countdown">
+      Limit erreicht – nächster Kredit in <strong>{{ countdown }}</strong>
+    </div>
     <div v-if="successMsg" class="msg success">{{ successMsg }}</div>
     <div v-if="errorMsg" class="msg error">{{ errorMsg }}</div>
   </div>
@@ -129,4 +150,6 @@ h3 {
 }
 .msg.success { color: #2ecc71; }
 .msg.error { color: #e74c3c; }
+.msg.countdown { color: #c9a227; }
+.msg.countdown strong { font-variant-numeric: tabular-nums; }
 </style>

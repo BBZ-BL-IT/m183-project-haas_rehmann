@@ -16,16 +16,18 @@ const auth = useAuthStore()
         <span class="value">{{ auth.user.total_spent }}</span>
       </div>
       <div class="cell">
-        <span class="label">Gewonnen</span>
-        <span class="value">{{ auth.user.total_win }}</span>
+        <span class="label">Profit</span>
+        <span class="value" :class="auth.user.total_profit >= 0 ? 'gain' : 'debt'">
+          {{ auth.user.total_profit >= 0 ? '+' : '' }}{{ auth.user.total_profit }}
+        </span>
       </div>
       <div class="cell">
-        <span class="label">Kredite (heute)</span>
-        <span class="value">{{ auth.user.loans_taken }} / 3</span>
+        <span class="label">Beste Serie</span>
+        <span class="value">{{ auth.user.highest_win_streak }} 🔥</span>
       </div>
       <div class="cell">
         <span class="label">Offene Schuld</span>
-        <span class="value debt">{{ auth.user.loans_total_owed }}</span>
+        <span class="value debt">{{ auth.user.loans_value }}</span>
       </div>
     </div>
   </div>
@@ -76,5 +78,8 @@ const auth = useAuthStore()
 }
 .debt {
   color: #e74c3c;
+}
+.gain {
+  color: #2ecc71;
 }
 </style>

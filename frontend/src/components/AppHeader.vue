@@ -13,10 +13,11 @@ const auth = useAuthStore()
       <template v-if="auth.isAuthenticated">
         <RouterLink to="/play">Slots</RouterLink>
         <RouterLink v-if="auth.isAdmin" to="/admin">Admin</RouterLink>
-        <span class="user">{{ auth.user?.appname }}</span>
+        <span class="user">{{ auth.user?.username }}</span>
         <button class="btn" @click="auth.logout">Logout</button>
       </template>
       <template v-else>
+        <RouterLink to="/register" class="btn">Registrieren</RouterLink>
         <button class="btn btn-primary" @click="auth.login">Login</button>
       </template>
     </nav>
