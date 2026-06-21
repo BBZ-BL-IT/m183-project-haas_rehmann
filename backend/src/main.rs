@@ -1,8 +1,15 @@
 mod app;
 mod auth;
+mod config;
+mod db;
+mod error;
+mod game;
 mod handlers;
+mod identity;
+mod models;
 mod routes;
 mod state;
+mod validate;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {

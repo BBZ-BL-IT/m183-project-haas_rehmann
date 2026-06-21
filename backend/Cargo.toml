@@ -22,8 +22,14 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 # Environment Variables
 dotenvy = "0.15"
 
-# Serve Vue static
-tower-http = { version = "0.7", features = ["fs"] }
+# Serve Vue static + CORS for the SPA
+tower-http = { version = "0.7", features = ["fs", "cors", "trace"] }
+
+# Randomness for the slot reels
+rand = "0.9"
+
+# Timestamps (loan window / reset countdown)
+chrono = { version = "0.4", features = ["serde"] }
 
 # Database
 sqlx = { version = "0.9.0", features = [

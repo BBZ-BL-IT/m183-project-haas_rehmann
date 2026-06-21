@@ -1,17 +1,20 @@
-// Zentrale DTO-Typen für die Backend-Schnittstelle.
-// Wenn das Backend Felder umbenennt, nur hier anpassen.
+// DTO types for the backend API. Keep in sync with backend/src/models.rs.
 
 export type Role = 'user' | 'admin'
 
 export interface UserInfo {
-  appname: string
+  username: string
   roles: Role[]
   balance: number
-  loans_total_amount: number
-  loans_taken: number
-  loans_total_owed: number
   total_spent: number
-  total_win: number
+  total_profit: number
+  highest_win_streak: number
+  loans_taken: number
+  loans_value: number
+  loans_in_window: number
+  loans_max: number
+  loans_window_seconds: number
+  loans_reset_at: string | null // RFC3339, or null when under the limit
 }
 
 // POST /spin
@@ -19,46 +22,55 @@ export interface SpinRequest {
   stake_amount: number
 }
 
-// Backend liefert ein 3x3 Raster zurück.
-export type SpinPattern = number[][]
-
 export interface SpinResponse {
-  pattern: SpinPattern
+  reels: number[]
   amount_earned: number
+  balance: number
+  total_spent: number
+  total_profit: number
+  highest_win_streak: number
 }
 
-// POST /loan/{amount}  (amount steckt im URL-Pfad)
+// POST /loan/{amount}
 export interface LoanResponse {
   balance: number
-  loans_total_amount: number
+  loans_value: number
   loans_taken: number
-  loans_total_owed: number
+  loans_in_window: number
+  loans_max: number
+  loans_reset_at: string | null
 }
 
 // GET /admin/userlist
 export interface AdminUserRow {
   id: number
-  appname: string
+  username: string
   balance: number
+  loans_value: number
+  loans_taken: number
 }
 
 export interface AdminUserListResponse {
   users: AdminUserRow[]
 }
 
-// POST /admin/update/user
+// POST /admin/update/user (only provided fields change)
 export interface AdminUpdateUserRequest {
   id: number
-  appname: string
-  balance?: number  // optional, das Projektantrag-Dokument sagt admin darf auch Guthaben anpassen
+  username?: string
+  balance?: number
+  loans_value?: number
+  loans_taken?: number
 }
 
 export interface AdminUpdateUserResponse {
-  appname: string
+  id: number
+  username: string
   balance: number
+  loans_value: number
+  loans_taken: number
 }
 
-// API-Fehlerformat. Falls dein Backend ein anderes Format liefert (z.B. `{ message }`), hier anpassen.
 export interface ApiError {
   error: string
   message?: string

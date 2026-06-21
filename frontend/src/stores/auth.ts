@@ -6,7 +6,6 @@ import { toApiError } from '@/api/client'
 import { USE_MOCK, getMockUser } from '@/api/mock'
 import type { UserInfo } from '@/types'
 
-// Merkt sich im Mock-Modus den Login, damit ein Reload eingeloggt bleibt.
 const MOCK_SESSION_KEY = 'mock_logged_in'
 
 export const useAuthStore = defineStore('auth', () => {
@@ -17,22 +16,20 @@ export const useAuthStore = defineStore('auth', () => {
   const isAuthenticated = computed(() => user.value !== null)
   const isAdmin = computed(() => user.value?.roles.includes('admin') ?? false)
 
-async function checkSession(): Promise<void> {
-    // --- TEMPORAER (Mock): keine Backend-Session. Login-Status kommt aus
-    //     sessionStorage, damit ein Reload eingeloggt bleibt. ---
+  async function checkSession(): Promise<void> {
     if (USE_MOCK) {
       user.value = sessionStorage.getItem(MOCK_SESSION_KEY) ? getMockUser() : null
       hasCheckedSession.value = true
       return
     }
-    // --- PRODUKTION: probiert /user/info. Bei 401 ist keine Session aktiv. ---
+    // Probe /user/info; a 401 means there's no active session.
     isLoading.value = true
     try {
       user.value = await fetchUserInfo()
     } catch (err) {
       const e = toApiError(err)
       if (e.status !== 401) {
-        console.error('Session-Check fehlgeschlagen:', e)
+        console.error('Session check failed:', e)
       }
       user.value = null
     } finally {
@@ -41,14 +38,13 @@ async function checkSession(): Promise<void> {
     }
   }
 
-  // Aktualisiert die User-Daten nach einer Aktion (z.B. nach /spin oder /loan).
+  // Merge fresh fields into the user after an action (e.g. /spin or /loan).
   function patchUser(partial: Partial<UserInfo>): void {
     if (user.value) {
       user.value = { ...user.value, ...partial }
     }
   }
 
-  // Lokalen Auth-Zustand leeren (z.B. wenn das Backend mit 401 antwortet).
   function clearSession(): void {
     if (USE_MOCK) sessionStorage.removeItem(MOCK_SESSION_KEY)
     user.value = null
@@ -56,26 +52,21 @@ async function checkSession(): Promise<void> {
   }
 
   function login(): void {
-    // --- TEMPORAER (Mock): direkt mit vorgegebenen Daten einloggen.
-    //     Kein Redirect, kein Request. ---
     if (USE_MOCK) {
       sessionStorage.setItem(MOCK_SESSION_KEY, '1')
       user.value = getMockUser()
       hasCheckedSession.value = true
       return
     }
-    // --- PRODUKTION: PKCE-Redirect zum Backend/IDP. ---
     loginRedirect()
   }
 
   function logout(): void {
-    // --- TEMPORAER (Mock): nur lokalen Zustand leeren. ---
     if (USE_MOCK) {
       sessionStorage.removeItem(MOCK_SESSION_KEY)
       user.value = null
       return
     }
-    // --- PRODUKTION: Backend beendet Session / loescht Cookie. ---
     user.value = null
     logoutRedirect()
   }

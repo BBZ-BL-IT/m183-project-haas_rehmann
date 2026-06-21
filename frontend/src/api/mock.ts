@@ -1,16 +1,4 @@
-// =====================================================================
-//  TEMPORÄRER MOCK-LAYER  —  NUR FÜR DEV OHNE BACKEND
-// ---------------------------------------------------------------------
-//  Solange Backend + Kanidm (PKCE) noch nicht laufen, liefern die
-//  Services feste Test-Daten aus dieser Datei. Gesteuert über das
-//  Env-Flag VITE_USE_MOCK (siehe .env.example).
-//
-//  >>> FÜR PRODUKTION: VITE_USE_MOCK=false setzen. Dann gehen alle
-//      Services über apiClient an das echte Backend, und Login/Logout
-//      laufen über den echten PKCE-Redirect zu Kanidm.
-//  >>> Diese ganze Datei kann am Ende gelöscht werden, sobald das
-//      Backend steht (zusammen mit den `if (USE_MOCK)`-Zweigen).
-// =====================================================================
+// In-memory mock data layer for dev without a backend (VITE_USE_MOCK=true).
 
 import type {
   UserInfo,
@@ -24,20 +12,28 @@ import type {
 
 export const USE_MOCK = import.meta.env.VITE_USE_MOCK === 'true'
 
-// künstliche Latenz, damit Lade-Zustände (Spinner etc.) sichtbar werden
 export const mockDelay = (ms = 400) => new Promise<void>((r) => setTimeout(r, ms))
 
-// Veränderbarer In-Memory-Zustand, damit Aktionen "wirken" (bis Reload).
+const LOANS_MAX = 3
+const LOANS_WINDOW = 86400
+
 const userState: UserInfo = {
-  appname: 'TestSpieler',
-  roles: ['user', 'admin'], // admin drin, damit die Admin-View testbar ist
+  username: 'TestSpieler',
+  roles: ['user', 'admin'],
   balance: 5000,
-  loans_total_amount: 0,
-  loans_taken: 0,
-  loans_total_owed: 0,
   total_spent: 0,
-  total_win: 0,
+  total_profit: 0,
+  highest_win_streak: 0,
+  loans_taken: 0,
+  loans_value: 0,
+  loans_in_window: 0,
+  loans_max: LOANS_MAX,
+  loans_window_seconds: LOANS_WINDOW,
+  loans_reset_at: null,
 }
+
+// Mock-Win-Streak-Zähler.
+let currentStreak = 0
 
 export function getMockUser(): UserInfo {
   return { ...userState }
@@ -45,40 +41,68 @@ export function getMockUser(): UserInfo {
 
 export function mockTakeLoan(amount: number): LoanResponse {
   userState.balance += amount
-  userState.loans_total_amount += amount
+  userState.loans_value += amount
   userState.loans_taken += 1
-  userState.loans_total_owed += amount
+  userState.loans_in_window += 1
+  if (userState.loans_in_window >= userState.loans_max) {
+    userState.loans_reset_at = new Date(Date.now() + LOANS_WINDOW * 1000).toISOString()
+  }
   return {
     balance: userState.balance,
-    loans_total_amount: userState.loans_total_amount,
+    loans_value: userState.loans_value,
     loans_taken: userState.loans_taken,
-    loans_total_owed: userState.loans_total_owed,
+    loans_in_window: userState.loans_in_window,
+    loans_max: userState.loans_max,
+    loans_reset_at: userState.loans_reset_at,
   }
 }
 
-// zufälliges 3x3-Raster (Symbole 1..7) — echte Spin-Logik kommt später ins Backend
-function randomPattern(): number[][] {
-  return Array.from({ length: 3 }, () =>
-    Array.from({ length: 3 }, () => Math.floor(Math.random() * 7) + 1),
-  )
+// Mirrors the backend payout logic (game.rs).
+const TRIPLE_MULTIPLIER: Record<number, number> = {
+  7: 50,
+  6: 25,
+  5: 15,
+  4: 10,
+  3: 8,
+  2: 6,
+  1: 5,
 }
 
 export function mockSpin(stake: number): SpinResponse {
-  const pattern = randomPattern()
-  // simple Test-Regel: mittlere Reihe (Payline) alle gleich => 5x Einsatz
-    const [a, b, c] = pattern[1] ?? [0, 0, 0]
-  const amount_earned = a === b && b === c ? stake * 5 : 0
+  const reels = Array.from({ length: 3 }, () => Math.floor(Math.random() * 7) + 1)
+  const [a = 0, b = 0, c = 0] = reels
+
+  let amount_earned = 0
+  if (a === b && b === c) {
+    amount_earned = stake * (TRIPLE_MULTIPLIER[a] ?? 5)
+  } else if (a === b || b === c || a === c) {
+    amount_earned = stake
+  }
+
+  if (amount_earned > stake) {
+    currentStreak += 1
+    if (currentStreak > userState.highest_win_streak) userState.highest_win_streak = currentStreak
+  } else {
+    currentStreak = 0
+  }
 
   userState.balance += amount_earned - stake
   userState.total_spent += stake
-  userState.total_win += amount_earned
-  return { pattern, amount_earned }
+  userState.total_profit += amount_earned - stake
+  return {
+    reels,
+    amount_earned,
+    balance: userState.balance,
+    total_spent: userState.total_spent,
+    total_profit: userState.total_profit,
+    highest_win_streak: userState.highest_win_streak,
+  }
 }
 
-const adminUsers: AdminUserRow[] = [
-  { id: 1, appname: 'TestSpieler', balance: 5000 },
-  { id: 2, appname: 'blabla', balance: 9092 },
-  { id: 3, appname: 'highroller', balance: 250000 },
+let adminUsers: AdminUserRow[] = [
+  { id: 1, username: 'TestSpieler', balance: 5000, loans_value: 0, loans_taken: 0 },
+  { id: 2, username: 'blabla', balance: 9092, loans_value: 1000, loans_taken: 2 },
+  { id: 3, username: 'highroller', balance: 250000, loans_value: 50000, loans_taken: 9 },
 ]
 
 export function mockUserList(): AdminUserListResponse {
@@ -88,7 +112,13 @@ export function mockUserList(): AdminUserListResponse {
 export function mockUpdateUser(req: AdminUpdateUserRequest): AdminUpdateUserResponse {
   const row = adminUsers.find((u) => u.id === req.id)
   if (!row) throw new Error(`Mock: User ${req.id} nicht gefunden`)
-  row.appname = req.appname
+  if (req.username !== undefined) row.username = req.username
   if (req.balance !== undefined) row.balance = req.balance
-  return { appname: row.appname, balance: row.balance }
+  if (req.loans_value !== undefined) row.loans_value = req.loans_value
+  if (req.loans_taken !== undefined) row.loans_taken = req.loans_taken
+  return { ...row }
+}
+
+export function mockDeleteUser(id: number): void {
+  adminUsers = adminUsers.filter((u) => u.id !== id)
 }

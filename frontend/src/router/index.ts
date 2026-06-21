@@ -36,7 +36,7 @@ const router = createRouter({
 router.beforeEach(async (to) => {
   const auth = useAuthStore()
 
-  // Session nur beim ersten Navigationsaufruf prüfen
+  // Check the session once, on the first navigation.
   if (!auth.hasCheckedSession) {
     await auth.checkSession()
   }

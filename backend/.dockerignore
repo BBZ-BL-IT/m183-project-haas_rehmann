@@ -1,0 +1,11 @@
+# Build artifacts – never ship the host's target dir into the image.
+target/
+# Local secrets / env
+.env
+*.env
+*.env.local
+# Editor / VCS noise
+.git/
+.idea/
+.vscode/
+*.bk

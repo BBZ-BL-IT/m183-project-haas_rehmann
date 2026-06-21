@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
-import { fetchUserList, updateUser } from '@/api/admin'
+import { fetchUserList, updateUser, deleteUser } from '@/api/admin'
 import { toApiError } from '@/api/client'
 import type { AdminUserRow } from '@/types'
 
@@ -9,9 +9,12 @@ const isLoading = ref(false)
 const errorMsg = ref<string | null>(null)
 
 const editId = ref<number | null>(null)
-const editAppname = ref('')
+const editUsername = ref('')
 const editBalance = ref(0)
+const editLoansValue = ref(0)
+const editLoansTaken = ref(0)
 const isSaving = ref(false)
+const busyId = ref<number | null>(null)
 
 async function load(): Promise<void> {
   isLoading.value = true
@@ -28,8 +31,10 @@ async function load(): Promise<void> {
 
 function startEdit(u: AdminUserRow): void {
   editId.value = u.id
-  editAppname.value = u.appname
+  editUsername.value = u.username
   editBalance.value = u.balance
+  editLoansValue.value = u.loans_value
+  editLoansTaken.value = u.loans_taken
 }
 
 function cancelEdit(): void {
@@ -43,19 +48,37 @@ async function save(): Promise<void> {
   try {
     const res = await updateUser({
       id: editId.value,
-      appname: editAppname.value,
+      username: editUsername.value,
       balance: editBalance.value,
+      loans_value: editLoansValue.value,
+      loans_taken: editLoansTaken.value,
     })
     const row = users.value.find((u) => u.id === editId.value)
     if (row) {
-      row.appname = res.appname
+      row.username = res.username
       row.balance = res.balance
+      row.loans_value = res.loans_value
+      row.loans_taken = res.loans_taken
     }
     editId.value = null
   } catch (err) {
     errorMsg.value = toApiError(err).message ?? 'Speichern fehlgeschlagen'
   } finally {
     isSaving.value = false
+  }
+}
+
+async function removeUser(u: AdminUserRow): Promise<void> {
+  if (!window.confirm(`Benutzer "${u.username}" wirklich löschen?`)) return
+  busyId.value = u.id
+  errorMsg.value = null
+  try {
+    await deleteUser(u.id)
+    users.value = users.value.filter((x) => x.id !== u.id)
+  } catch (err) {
+    errorMsg.value = toApiError(err).message ?? 'Löschen fehlgeschlagen'
+  } finally {
+    busyId.value = null
   }
 }
 
@@ -73,8 +96,10 @@ onMounted(load)
       <thead>
         <tr>
           <th>ID</th>
-          <th>Appname</th>
+          <th>Username</th>
           <th>Guthaben</th>
+          <th>Offene Kredite</th>
+          <th>Kredite total</th>
           <th></th>
         </tr>
       </thead>
@@ -83,8 +108,10 @@ onMounted(load)
           <td>{{ u.id }}</td>
 
           <template v-if="editId === u.id">
-            <td><input v-model="editAppname" class="cell-input" /></td>
+            <td><input v-model="editUsername" class="cell-input" /></td>
             <td><input v-model.number="editBalance" type="number" class="cell-input" /></td>
+            <td><input v-model.number="editLoansValue" type="number" class="cell-input" /></td>
+            <td><input v-model.number="editLoansTaken" type="number" class="cell-input" /></td>
             <td class="actions">
               <button class="btn primary" :disabled="isSaving" @click="save">
                 {{ isSaving ? '…' : 'Speichern' }}
@@ -94,10 +121,15 @@ onMounted(load)
           </template>
 
           <template v-else>
-            <td>{{ u.appname }}</td>
+            <td>{{ u.username }}</td>
             <td>{{ u.balance }}</td>
+            <td>{{ u.loans_value }}</td>
+            <td>{{ u.loans_taken }}</td>
             <td class="actions">
               <button class="btn" @click="startEdit(u)">Bearbeiten</button>
+              <button class="btn danger" :disabled="busyId === u.id" @click="removeUser(u)">
+                {{ busyId === u.id ? '…' : 'Löschen' }}
+              </button>
             </td>
           </template>
         </tr>
@@ -176,6 +208,14 @@ tbody tr:last-child td {
   border-color: #c9a227;
   color: #0b0d12;
   font-weight: 600;
+}
+.btn.danger {
+  border-color: #e74c3c;
+  color: #e74c3c;
+}
+.btn.danger:hover {
+  background: #e74c3c;
+  color: #0b0d12;
 }
 .btn:disabled {
   opacity: 0.5;

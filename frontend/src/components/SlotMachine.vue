@@ -6,9 +6,7 @@ import { useAuthStore } from '@/stores'
 
 const auth = useAuthStore()
 
-// Mapping Zahl → Emoji. Welche Zahl das Backend für welches Symbol nutzt,
-// ist bei uns Konvention. Falls dein Backend andere Zahlen liefert,
-// hier ergänzen.
+// Symbol number → emoji (1..7).
 const SYMBOLS: Record<number, string> = {
   1: '🍒',
   2: '🍋',
@@ -25,12 +23,20 @@ const isSpinning = ref(false)
 const errorMsg = ref<string | null>(null)
 const lastWin = ref<number | null>(null)
 
-// Anfangs-Reels (rein optisch)
-const reels = ref<number[][]>([
-  [1, 2, 3],
-  [4, 5, 6],
-  [7, 1, 2],
-])
+const reels = ref<number[]>([1, 2, 3])
+
+// Indices of the winning cells (all three, or the matching pair) to highlight.
+const winningIdx = ref<Set<number>>(new Set())
+
+function computeWinningIdx(r: number[], won: boolean): Set<number> {
+  if (!won) return new Set()
+  const [a, b, c] = r
+  if (a === b && b === c) return new Set([0, 1, 2])
+  if (a === b) return new Set([0, 1])
+  if (b === c) return new Set([1, 2])
+  if (a === c) return new Set([0, 2])
+  return new Set()
+}
 
 const canSpin = computed(() => {
   if (!auth.user || isSpinning.value) return false
@@ -43,31 +49,29 @@ async function handleSpin(): Promise<void> {
   isSpinning.value = true
   errorMsg.value = null
   lastWin.value = null
+  winningIdx.value = new Set()
 
-  // Kleine Rolling-Animation: random Symbole bis Backend antwortet
+  // Rolling animation: random symbols until the backend answers.
   const animation = window.setInterval(() => {
-    reels.value = Array.from({ length: 3 }, () =>
-      Array.from({ length: 3 }, () => Math.floor(Math.random() * 7) + 1),
-    )
+    reels.value = Array.from({ length: 3 }, () => Math.floor(Math.random() * 7) + 1)
   }, 80)
 
   try {
     const result = await spin({ stake_amount: stake.value })
 
-    // Mindestens 600ms Animation, damit es sich anfühlt wie Spin
+    // Keep spinning for at least 600ms so it feels like a real spin.
     window.setTimeout(() => {
       window.clearInterval(animation)
-      reels.value = result.pattern
+      reels.value = result.reels
       lastWin.value = result.amount_earned
+      winningIdx.value = computeWinningIdx(result.reels, result.amount_earned > 0)
 
-      // Lokal die User-Stats anpassen, ohne /user/info neu zu laden
-      if (auth.user) {
-        auth.patchUser({
-          balance: auth.user.balance - stake.value + result.amount_earned,
-          total_spent: auth.user.total_spent + stake.value,
-          total_win: auth.user.total_win + result.amount_earned,
-        })
-      }
+      auth.patchUser({
+        balance: result.balance,
+        total_spent: result.total_spent,
+        total_profit: result.total_profit,
+        highest_win_streak: result.highest_win_streak,
+      })
       isSpinning.value = false
     }, 600)
   } catch (err) {
@@ -81,15 +85,13 @@ async function handleSpin(): Promise<void> {
 <template>
   <div class="slot">
     <div class="reels">
-      <div v-for="(row, rowIdx) in reels" :key="rowIdx" class="reel-row">
-        <div
-          v-for="(cell, colIdx) in row"
-          :key="colIdx"
-          class="reel-cell"
-          :class="{ payline: rowIdx === 1 }"
-        >
-          {{ symbolFor(cell) }}
-        </div>
+      <div
+        v-for="(cell, colIdx) in reels"
+        :key="colIdx"
+        class="reel-cell"
+        :class="{ spinning: isSpinning, winning: winningIdx.has(colIdx) }"
+      >
+        {{ symbolFor(cell) }}
       </div>
     </div>
 
@@ -127,17 +129,12 @@ async function handleSpin(): Promise<void> {
 }
 .reels {
   display: grid;
-  grid-template-rows: repeat(3, 1fr);
-  gap: 8px;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
   background: #0b0d12;
-  padding: 1rem;
+  padding: 1.25rem;
   border-radius: 8px;
   margin-bottom: 1.5rem;
-}
-.reel-row {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
 }
 .reel-cell {
   background: #1c1f28;
@@ -146,11 +143,20 @@ async function handleSpin(): Promise<void> {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 3rem;
+  font-size: 4rem;
   aspect-ratio: 1;
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s,
+    transform 0.1s;
 }
-.reel-cell.payline {
+.reel-cell.spinning {
+  transform: translateY(-2px);
+  border-color: #3a3e48;
+}
+.reel-cell.winning {
   border-color: #c9a227;
+  box-shadow: 0 0 16px rgba(201, 162, 39, 0.6);
 }
 .result {
   text-align: center;

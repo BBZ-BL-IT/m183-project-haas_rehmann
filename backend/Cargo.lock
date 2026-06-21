@@ -1575,8 +1575,10 @@ dependencies = [
  "axum",
  "axum-extra",
  "axum-oidc-client",
+ "chrono",
  "dotenvy",
  "oauth2",
+ "rand 0.9.4",
  "reqwest 0.13.4",
  "serde",
  "serde_json",
@@ -3148,6 +3150,7 @@ dependencies = [
  "tokio-util",
  "tower-layer",
  "tower-service",
+ "tracing",
 ]
 
 [[package]]

@@ -1,0 +1,32 @@
+# =====================================================================
+#  Frontend only – pulls the published nginx image from Docker Hub.
+#
+#  The image serves the built SPA and reverse-proxies the API/auth paths
+#  (/auth, /user, /spin, /loan, /admin, /health) to the `backend` service,
+#  so the browser only ever talks to one origin (no CORS, cookies just work).
+#
+#  Prerequisite: the infra + backend stacks are running (the proxy targets
+#  `backend:8080` on the shared network):
+#     docker compose -f docker-compose.infra.yml up -d
+#     docker compose -f docker-compose.backend.yml up -d
+#     docker compose -f docker-compose.frontend.yml up -d
+#
+#  Then open http://localhost:8081
+# =====================================================================
+
+name: casino-frontend
+
+networks:
+  casino_net:
+    name: casino_net
+    external: true
+
+services:
+  frontend:
+    image: ${FRONTEND_IMAGE:-t1me0n/grand-casino-frontend:latest}
+    container_name: casino-frontend
+    restart: unless-stopped
+    ports:
+      - "8081:80"
+    networks:
+      - casino_net
