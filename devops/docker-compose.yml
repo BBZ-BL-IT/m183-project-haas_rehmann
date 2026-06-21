@@ -179,6 +179,10 @@ services:
       # Server-side (backend -> Kanidm over the compose network) -> kanidm.
       OIDC_TOKEN_ENDPOINT: ${KANIDM_ORIGIN:-https://kanidm:8443}/oauth2/token
       OIDC_REDIRECT_URI: ${OIDC_REDIRECT_URI:-http://localhost:8081/auth/callback}
+      # Kanidm end-session endpoint (browser-facing -> public origin) for RP-initiated
+      # logout, so logging out also ends the Kanidm SSO session (no silent re-login).
+      OIDC_END_SESSION_ENDPOINT: ${OIDC_END_SESSION_ENDPOINT:-${KANIDM_PUBLIC_ORIGIN:-https://localhost:8443}/oauth2/openid/${OIDC_CLIENT_ID:-m183-backend}/logout}
+      # Where the user lands after logout (the app origin, must be registered in Kanidm).
       OIDC_POST_LOGOUT_REDIRECT_URI: ${OIDC_POST_LOGOUT_REDIRECT_URI:-http://localhost:8081/}
       OIDC_CA_CERT: /shared/kanidm-ca.pem
       OIDC_ROLE_CLAIMS: roles,groups,scopes,scope
