@@ -50,16 +50,6 @@ export interface LoanResponse {
   loans_reset_at: string | null
 }
 
-// POST /register
-export interface RegisterRequest {
-  username: string
-}
-
-export interface RegisterResponse {
-  username: string
-  reset_url: string
-}
-
 // GET /admin/userlist
 export interface AdminUserRow {
   id: number

@@ -34,11 +34,7 @@ pub async fn run() -> anyhow::Result<()> {
     let auth_cache = Arc::new(TwoTierAuthCache::new(None, TwoTierCacheConfig::default())?);
     let logout_handler = Arc::new(DefaultLogoutHandler);
 
-    let app_state = AppState::new(
-        pool,
-        crate::config::LoanConfig::from_env(),
-        crate::kanidm::KanidmRegistrar::from_env(),
-    );
+    let app_state = AppState::new(pool, crate::config::LoanConfig::from_env());
 
     // Base router → OIDC auth layer → (optional) CORS → request tracing.
     let mut app = routes::create_router(app_state).layer(AuthenticationLayer::new(

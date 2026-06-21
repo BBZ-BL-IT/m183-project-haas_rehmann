@@ -6,7 +6,6 @@ mod error;
 mod game;
 mod handlers;
 mod identity;
-mod kanidm;
 mod models;
 mod routes;
 mod state;

@@ -17,7 +17,6 @@ const auth = useAuthStore()
         <button class="btn" @click="auth.logout">Logout</button>
       </template>
       <template v-else>
-        <RouterLink to="/register" class="btn">Registrieren</RouterLink>
         <button class="btn btn-primary" @click="auth.login">Login</button>
       </template>
     </nav>

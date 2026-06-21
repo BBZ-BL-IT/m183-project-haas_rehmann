@@ -54,20 +54,6 @@ pub struct LoanResponse {
     pub loans_reset_at: Option<String>,
 }
 
-/// `POST /register` request.
-#[derive(Debug, Deserialize)]
-pub struct RegisterRequest {
-    pub username: String,
-}
-
-/// `POST /register` response – the new account plus a credential-reset link the
-/// user opens to set their password before logging in.
-#[derive(Debug, Serialize)]
-pub struct RegisterResponse {
-    pub username: String,
-    pub reset_url: String,
-}
-
 /// One row of the admin user table.
 #[derive(Debug, Serialize)]
 pub struct AdminUserRow {

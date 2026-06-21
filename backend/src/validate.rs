@@ -32,28 +32,6 @@ pub fn validate_username(name: &str) -> Result<(), AppError> {
     Ok(())
 }
 
-/// Validate that a username is also a legal Kanidm account name (used at
-/// registration, where we create the Kanidm person). Kanidm names must be
-/// lowercase and start with a letter.
-pub fn validate_kanidm_name(name: &str) -> Result<(), AppError> {
-    validate_username(name)?;
-    let first = name.chars().next().unwrap();
-    if !first.is_ascii_lowercase() {
-        return Err(AppError::BadRequest(
-            "username must start with a lowercase letter".to_string(),
-        ));
-    }
-    if !name
-        .chars()
-        .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || matches!(c, '.' | '_' | '-'))
-    {
-        return Err(AppError::BadRequest(
-            "username must be lowercase letters, digits, and . _ -".to_string(),
-        ));
-    }
-    Ok(())
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -62,7 +40,6 @@ mod tests {
     fn accepts_valid() {
         assert!(validate_username("Alice_99").is_ok());
         assert!(validate_username("a.b-c").is_ok());
-        assert!(validate_kanidm_name("alice_99").is_ok());
     }
 
     #[test]
@@ -72,7 +49,5 @@ mod tests {
         assert!(validate_username("_leading").is_err());
         assert!(validate_username("bad space").is_err());
         assert!(validate_username("inject;drop").is_err());
-        // uppercase rejected for Kanidm names
-        assert!(validate_kanidm_name("Alice").is_err());
     }
 }

@@ -180,12 +180,6 @@ services:
       OIDC_ROLE_CLAIMS: roles,groups,scopes,scope
       OIDC_ADMIN_ROLE: admin
 
-      # Self-registration: backend creates Kanidm persons via the registrar token.
-      KANIDM_API_URL: ${KANIDM_ORIGIN:-https://kanidm:8443}
-      KANIDM_PUBLIC_ORIGIN: ${KANIDM_PUBLIC_ORIGIN:-https://localhost:8443}
-      KANIDM_REGISTRAR_TOKEN_FILE: /shared/registrar_token
-      KANIDM_REGISTER_GROUP: casino_users
-
       PRIVATE_COOKIE_KEY: ${PRIVATE_COOKIE_KEY:?set PRIVATE_COOKIE_KEY in .env}
       SESSION_MAX_AGE: ${SESSION_MAX_AGE:-1440}
     volumes:

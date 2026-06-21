@@ -9,7 +9,6 @@ use crate::error::AppError;
 #[derive(Debug, sqlx::FromRow)]
 pub struct UserRow {
     pub id: i64,
-    pub username: String,
 }
 
 /// Fetch the user for this OIDC subject, creating the row (and its 1:1
@@ -32,7 +31,7 @@ pub async fn get_or_create_user(
             SET is_admin   = EXCLUDED.is_admin,
                 email      = COALESCE(EXCLUDED.email, users.email),
                 updated_at = now()
-        RETURNING id, username
+        RETURNING id
         "#,
     )
     .bind(subject)
