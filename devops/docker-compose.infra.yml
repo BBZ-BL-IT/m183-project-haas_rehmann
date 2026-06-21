@@ -1,0 +1,150 @@
+# =====================================================================
+#  Infrastructure: PostgreSQL + Kanidm (with automatic provisioning).
+#
+#  Bring it up on its own with:
+#     docker compose -f docker-compose.infra.yml up -d
+#
+#  Order of Kanidm services:
+#     kanidm-bootstrap (one-shot)  -> generates TLS cert + recovers idm_admin
+#     kanidm           (server)    -> starts once bootstrap completed
+#     kanidm-provision (one-shot)  -> creates groups/users/oauth2 client
+# =====================================================================
+
+name: casino-infra
+
+networks:
+  casino_net:
+    name: casino_net
+
+volumes:
+  pg_data:
+  kanidm_data:
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: casino-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-m183_db}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    networks:
+      - casino_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-m183_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # The kanidm images are distroless (no shell). This one-shot stages a static
+  # musl busybox + applet symlinks into /shared/bin so the bootstrap/provision
+  # shell scripts can run inside those images.
+  busybox-init:
+    image: busybox:musl
+    container_name: casino-busybox-init
+    command:
+      - sh
+      - -c
+      - |
+        cp /bin/busybox /shared/busybox && chmod 755 /shared/busybox &&
+        mkdir -p /shared/bin &&
+        for a in sh sed grep head cat tr tee cut cp chmod mkdir rm sleep seq printf env test wc; do
+          ln -sf /shared/busybox /shared/bin/$$a;
+        done &&
+        echo "busybox staged"
+    volumes:
+      - ./kanidm/secrets:/shared
+    networks:
+      - casino_net
+
+  # One-shot: generate the multi-SAN TLS cert (localhost + kanidm) BEFORE the
+  # server, using openssl.
+  kanidm-cert:
+    image: docker.io/alpine/openssl:latest
+    container_name: casino-kanidm-cert
+    entrypoint: ["/bin/sh", "/gen-cert.sh"]
+    volumes:
+      - kanidm_data:/data
+      - ./kanidm/gen-cert.sh:/gen-cert.sh:ro
+      - ./kanidm/secrets:/shared
+    networks:
+      - casino_net
+
+  kanidm:
+    image: kanidm/server:latest
+    container_name: casino-kanidm
+    restart: unless-stopped
+    command: ["/sbin/kanidmd", "server", "-c", "/data/server.toml"]
+    depends_on:
+      kanidm-cert:
+        condition: service_completed_successfully
+    ports:
+      - "8443:8443"
+    volumes:
+      - kanidm_data:/data
+      - ./kanidm/server.toml:/data/server.toml:ro
+      - ./kanidm/secrets:/shared
+    networks:
+      - casino_net
+
+  # One-shot: recover idm_admin via the running server's admin socket (online).
+  kanidm-recover:
+    image: kanidm/server:latest
+    container_name: casino-kanidm-recover
+    entrypoint: ["/shared/busybox", "sh", "/recover.sh"]
+    depends_on:
+      kanidm:
+        condition: service_started
+    volumes:
+      - kanidm_data:/data
+      - ./kanidm/server.toml:/data/server.toml:ro
+      - ./kanidm/recover.sh:/recover.sh:ro
+      - ./kanidm/secrets:/shared
+    networks:
+      - casino_net
+
+  # One-shot: declarative provisioning of groups/users/oauth2 client.
+  kanidm-provision:
+    image: kanidm/tools:latest
+    container_name: casino-kanidm-provision
+    entrypoint: ["/shared/busybox", "sh", "/provision.sh"]
+    environment:
+      KANIDM_URL: ${KANIDM_ORIGIN:-https://kanidm:8443}
+      OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-m183-backend}
+      OIDC_REDIRECT_URI: ${OIDC_REDIRECT_URI:-http://localhost:8081/auth/callback}
+      KANIDM_ADMIN_ACCOUNT: ${KANIDM_ADMIN_ACCOUNT:-rehmann_admin}
+      KANIDM_USER_ACCOUNT: ${KANIDM_USER_ACCOUNT:-rehmann_user}
+    depends_on:
+      kanidm-recover:
+        condition: service_completed_successfully
+    volumes:
+      - ./kanidm/provision.sh:/provision.sh:ro
+      - ./kanidm/secrets:/shared
+    networks:
+      - casino_net
+
+  # One-shot: set ready-to-use passwords for the demo accounts and write them to
+  # kanidm/secrets/demo-credentials.txt (so you can log in without the browser
+  # credential-reset flow).
+  kanidm-demo-passwords:
+    image: kanidm/server:latest
+    container_name: casino-kanidm-demo-passwords
+    entrypoint: ["/shared/busybox", "sh", "/demo-passwords.sh"]
+    environment:
+      KANIDM_ADMIN_ACCOUNT: ${KANIDM_ADMIN_ACCOUNT:-rehmann_admin}
+      KANIDM_USER_ACCOUNT: ${KANIDM_USER_ACCOUNT:-rehmann_user}
+    depends_on:
+      kanidm-provision:
+        condition: service_completed_successfully
+    volumes:
+      - kanidm_data:/data
+      - ./kanidm/server.toml:/data/server.toml:ro
+      - ./kanidm/demo-passwords.sh:/demo-passwords.sh:ro
+      - ./kanidm/secrets:/shared
+    networks:
+      - casino_net

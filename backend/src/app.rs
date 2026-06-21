@@ -1,3 +1,4 @@
+use axum::http::{HeaderValue, Method, header};
 use axum_oidc_client::{
     auth::AuthenticationLayer,
     cache::{TwoTierAuthCache, config::TwoTierCacheConfig},
@@ -6,7 +7,9 @@ use axum_oidc_client::{
 use sqlx::{migrate, postgres::PgPoolOptions};
 use std::sync::Arc;
 use std::time::Duration;
-use tracing::info;
+use tower_http::cors::CorsLayer;
+use tower_http::trace::TraceLayer;
+use tracing::{info, warn};
 
 use crate::auth;
 use crate::routes;
@@ -23,20 +26,28 @@ pub async fn run() -> anyhow::Result<()> {
         .connect(&database_url)
         .await?;
 
-    migrate!("./migrations");
+    // Apply pending migrations on startup (embedded into the binary at compile
+    // time, so the Docker image doesn't need the SQL files at runtime).
+    migrate!("./migrations").run(&pool).await?;
+    info!("Database migrations applied");
 
     let auth_cache = Arc::new(TwoTierAuthCache::new(None, TwoTierCacheConfig::default())?);
     let logout_handler = Arc::new(DefaultLogoutHandler);
 
     let app_state = AppState::new(pool);
 
-    // 5. Build Router & Attach Layers
-    // Note: routes::create_router returns your base Axum Router
-    let app = routes::create_router(app_state).layer(AuthenticationLayer::new(
+    // Base router → OIDC auth layer → (optional) CORS → request tracing.
+    let mut app = routes::create_router(app_state).layer(AuthenticationLayer::new(
         Arc::new(oidc_config),
         auth_cache,
         logout_handler,
     ));
+
+    if let Some(cors) = build_cors() {
+        app = app.layer(cors);
+    }
+
+    let app = app.layer(TraceLayer::new_for_http());
 
     let port: u16 = std::env::var("SERVER_PORT")
         .unwrap_or_else(|_| "8080".to_string())
@@ -52,4 +63,40 @@ pub async fn run() -> anyhow::Result<()> {
     axum::serve(listener, app).await?;
 
     Ok(())
+}
+
+/// Build a CORS layer from `CORS_ALLOWED_ORIGINS` (comma separated). Returns
+/// `None` when unset, which is the right default for a same-origin deployment
+/// (frontend served behind the same host, or reverse-proxied to the backend).
+///
+/// When the frontend runs on a *different* origin (e.g. the Vite dev server on
+/// `http://localhost:5173`), set the variable so the browser is allowed to send
+/// the session cookie with credentials.
+fn build_cors() -> Option<CorsLayer> {
+    let raw = std::env::var("CORS_ALLOWED_ORIGINS").ok()?;
+    let origins: Vec<HeaderValue> = raw
+        .split(',')
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .filter_map(|o| match o.parse::<HeaderValue>() {
+            Ok(v) => Some(v),
+            Err(_) => {
+                warn!("ignoring invalid CORS origin: {o}");
+                None
+            }
+        })
+        .collect();
+
+    if origins.is_empty() {
+        return None;
+    }
+
+    info!("CORS enabled for origins: {raw}");
+    Some(
+        CorsLayer::new()
+            .allow_origin(origins)
+            .allow_credentials(true)
+            .allow_methods([Method::GET, Method::POST])
+            .allow_headers([header::CONTENT_TYPE]),
+    )
 }
