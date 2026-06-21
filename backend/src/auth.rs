@@ -2,10 +2,6 @@ use axum_oidc_client::auth_builder::OAuthConfigurationBuilder;
 use std::env;
 use std::fs;
 
-/// Read a config value from `NAME`, falling back to the file referenced by
-/// `NAME_FILE` (the common "docker secret" pattern). The Kanidm provisioning
-/// step writes the generated OAuth2 client secret to a file, so the backend can
-/// pick it up via `OIDC_CLIENT_SECRET_FILE` without baking it into the image.
 fn env_or_file(name: &str) -> Result<String, String> {
     if let Ok(value) = env::var(name) {
         return Ok(value);
@@ -45,8 +41,7 @@ pub fn get_oidc_config()
         .with_scopes(vec!["openid", "profile", "email", "groups"])
         .with_session_max_age(session_max_age);
 
-    // Trust a self-signed identity provider (Kanidm in local dev) when a CA
-    // certificate path is provided.
+    // Trust a self-signed identity provider (Kanidm in local dev) when a CA certificate path is provided.
     if let Ok(ca_cert) = env::var("OIDC_CA_CERT") {
         builder = builder.with_custom_ca_cert(&ca_cert);
     }

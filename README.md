@@ -112,10 +112,10 @@ The container stack (PostgreSQL + Kanidm + backend + frontend) lives in
 cd devops
 cp .env.example .env          # set a strong PRIVATE_COOKIE_KEY
 
-# Podman (rootless – builds images, staged bring-up handles init containers):
+# Podman (rootless – staged bring-up handles the one-shot init containers):
 ./podman-up.sh
 # …or Docker:
-docker compose up -d --build
+docker compose up -d
 ```
 
 Then open <http://localhost:8081>. Kanidm runs at <https://localhost:8443>
@@ -162,9 +162,9 @@ npm run type-check   # vue-tsc
 - **Frontend** — `frontend/.env.example`: API base URL, OIDC login/logout paths,
   and the `VITE_USE_MOCK` flag.
 - **Stack** — `devops/.env.example`: Postgres credentials, Kanidm origin, and
-  the cookie key shared with the backend. Images are built locally by default
-  (no Docker Hub account needed); set `BACKEND_IMAGE`/`FRONTEND_IMAGE` to pull
-  the published images instead.
+  the cookie key shared with the backend. The backend/frontend images are pulled
+  from Docker Hub (`t1me0n/grand-casino-*`), built and pushed by the CI
+  workflows.
 
 ## Continuous integration
 

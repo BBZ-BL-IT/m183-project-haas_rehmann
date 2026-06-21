@@ -1,21 +1,10 @@
 #!/usr/bin/env bash
-# =====================================================================
-#  Staged bring-up for podman-compose.
+# Staged bring-up for podman-compose, which doesn't honour
+# `depends_on: condition: service_completed_successfully` for one-shot init
+# containers. Starts services in order, waiting for each one-shot to finish.
+# (With Docker, just use `docker compose up -d`.)
 #
-#  podman-compose does NOT honour `depends_on: condition:
-#  service_completed_successfully` for one-shot init containers (it maps
-#  depends_on to podman's "requires", which expects the dependency to stay
-#  *running* – our init containers exit, so dependents fail with "container
-#  state improper"). docker compose handles the conditions natively, so with
-#  Docker you can just run `docker compose up -d`.
-#
-#  This script starts the services in the correct order, waiting for each
-#  one-shot to finish before starting what depends on it.
-#
-#  Usage:
-#     ./podman-up.sh                      # full stack (docker-compose.yml)
-#     ./podman-up.sh docker-compose.infra.yml   # infra only
-# =====================================================================
+# Usage: ./podman-up.sh [compose-file]   (default: docker-compose.yml)
 set -euo pipefail
 cd "$(dirname "$0")"
 
@@ -58,8 +47,6 @@ echo "== Kanidm: set demo account passwords =="
 
 # Backend + frontend only exist in the combined compose file.
 if grep -qE '^[[:space:]]*frontend:' "$FILE"; then
-  echo "== Building backend + frontend images =="
-  "${PC[@]}" build backend frontend
   echo "== Backend =="
   "${PC[@]}" up -d --no-deps backend
   echo "== Frontend =="

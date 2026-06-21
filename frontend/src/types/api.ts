@@ -1,5 +1,4 @@
-// Zentrale DTO-Typen für die Backend-Schnittstelle.
-// Wenn das Backend Felder umbenennt, nur hier anpassen.
+// DTO types for the backend API. Keep in sync with backend/src/models.rs.
 
 export type Role = 'user' | 'admin'
 
@@ -7,40 +6,32 @@ export interface UserInfo {
   username: string
   roles: Role[]
   balance: number
-  // --- Stats ---
   total_spent: number
-  total_profit: number // kann negativ sein
+  total_profit: number
   highest_win_streak: number
-  loans_taken: number // Lebenszeit-Anzahl
-  loans_value: number // offener/geschuldeter Betrag
-  // --- Kredit-Limit ---
-  loans_in_window: number // Anzahl im aktuellen Fenster
+  loans_taken: number
+  loans_value: number
+  loans_in_window: number
   loans_max: number
   loans_window_seconds: number
-  loans_reset_at: string | null // RFC3339; wann der nächste Slot frei wird (null = unter Limit)
+  loans_reset_at: string | null // RFC3339, or null when under the limit
 }
 
 // POST /spin
-// Der Client wählt nur den Einsatz – das Backend würfelt die Walzen und
-// berechnet den Gewinn (Server ist die einzige Wahrheit; niemals dem Client
-// die Walzen/Auszahlung anvertrauen).
 export interface SpinRequest {
   stake_amount: number
 }
 
-// Das Backend liefert genau 3 Zahlen (eine Reihe). Sind alle gleich -> grosser
-// Gewinn; genau zwei gleich -> Einsatz zurück; sonst verloren.
 export interface SpinResponse {
-  reels: number[] // genau 3 Zahlen (Symbole 1..7)
-  amount_earned: number // Brutto-Gewinn (0 bei Niete)
-  // Autoritative Werte nach dem Spin.
+  reels: number[]
+  amount_earned: number
   balance: number
   total_spent: number
   total_profit: number
   highest_win_streak: number
 }
 
-// POST /loan/{amount}  (amount steckt im URL-Pfad)
+// POST /loan/{amount}
 export interface LoanResponse {
   balance: number
   loans_value: number
@@ -63,7 +54,7 @@ export interface AdminUserListResponse {
   users: AdminUserRow[]
 }
 
-// POST /admin/update/user  (nur gesetzte Felder werden geändert)
+// POST /admin/update/user (only provided fields change)
 export interface AdminUpdateUserRequest {
   id: number
   username?: string
@@ -80,7 +71,6 @@ export interface AdminUpdateUserResponse {
   loans_taken: number
 }
 
-// API-Fehlerformat. Falls dein Backend ein anderes Format liefert (z.B. `{ message }`), hier anpassen.
 export interface ApiError {
   error: string
   message?: string

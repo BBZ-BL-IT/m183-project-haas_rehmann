@@ -6,9 +6,7 @@ import { useAuthStore } from '@/stores'
 
 const auth = useAuthStore()
 
-// Mapping Zahl → Emoji. Welche Zahl das Backend für welches Symbol nutzt,
-// ist bei uns Konvention. Falls dein Backend andere Zahlen liefert,
-// hier ergänzen.
+// Symbol number → emoji (1..7).
 const SYMBOLS: Record<number, string> = {
   1: '🍒',
   2: '🍋',
@@ -25,10 +23,9 @@ const isSpinning = ref(false)
 const errorMsg = ref<string | null>(null)
 const lastWin = ref<number | null>(null)
 
-// Eine Reihe mit 3 Walzen. Anfangswerte rein optisch.
 const reels = ref<number[]>([1, 2, 3])
 
-// Indizes der gewinnenden Zellen (alle drei, oder das Paar) zum Hervorheben.
+// Indices of the winning cells (all three, or the matching pair) to highlight.
 const winningIdx = ref<Set<number>>(new Set())
 
 function computeWinningIdx(r: number[], won: boolean): Set<number> {
@@ -54,7 +51,7 @@ async function handleSpin(): Promise<void> {
   lastWin.value = null
   winningIdx.value = new Set()
 
-  // Kleine Rolling-Animation: random Symbole bis das Backend antwortet
+  // Rolling animation: random symbols until the backend answers.
   const animation = window.setInterval(() => {
     reels.value = Array.from({ length: 3 }, () => Math.floor(Math.random() * 7) + 1)
   }, 80)
@@ -62,14 +59,13 @@ async function handleSpin(): Promise<void> {
   try {
     const result = await spin({ stake_amount: stake.value })
 
-    // Mindestens 600ms Animation, damit es sich wie ein Spin anfühlt
+    // Keep spinning for at least 600ms so it feels like a real spin.
     window.setTimeout(() => {
       window.clearInterval(animation)
       reels.value = result.reels
       lastWin.value = result.amount_earned
       winningIdx.value = computeWinningIdx(result.reels, result.amount_earned > 0)
 
-      // Server-Wahrheit übernehmen: Balance/Stats kommen autoritativ zurück.
       auth.patchUser({
         balance: result.balance,
         total_spent: result.total_spent,

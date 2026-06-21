@@ -1,5 +1,3 @@
-//! Slot machine handler – `POST /spin`.
-
 use axum::{Json, extract::State};
 use axum_oidc_client::auth_session::AuthSession;
 
@@ -10,7 +8,6 @@ use crate::identity::Identity;
 use crate::models::{SpinRequest, SpinResponse};
 use crate::state::AppState;
 
-/// `POST /spin` – stake some balance, the server rolls the reels and settles.
 pub async fn spin(
     State(state): State<AppState>,
     session: AuthSession,
@@ -35,7 +32,6 @@ pub async fn spin(
     .await?;
 
     let outcome = game::play(req.stake_amount);
-    // A "win" for the streak is a net-positive spin.
     let won = outcome.amount_earned > req.stake_amount;
 
     let result = db::record_spin(

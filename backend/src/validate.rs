@@ -1,12 +1,7 @@
-//! Input validation helpers.
-
 use crate::error::AppError;
 
 const MAX_USERNAME_LEN: usize = 20;
 
-/// Validate a display username: 1–20 chars, must start with a letter or digit,
-/// and only contain `A-Z a-z 0-9 . _ -` ("normal" username specials). Used for
-/// admin renames and as the base check for registration.
 pub fn validate_username(name: &str) -> Result<(), AppError> {
     let len = name.chars().count();
     if len == 0 || len > MAX_USERNAME_LEN {

@@ -1,14 +1,7 @@
 #!/bin/sh
-# =====================================================================
-#  Kanidm idm_admin recovery (one-shot, kanidm/server image, runs AFTER the
-#  server is up). In Kanidm 1.10 `recover-account` is an ONLINE operation: it
-#  talks to the running server over its admin unix socket (/data/kanidmd.sock),
-#  so this shares the kanidm_data volume with the server.
-#
-#  The freshly recovered password is written to /shared/idm_admin.password for
-#  the provisioning step. We always re-recover so the saved password stays in
-#  sync with the current database (the host secrets dir survives `down -v`).
-# =====================================================================
+# Recover idm_admin (runs after the server is up; recover-account is online via
+# /data/kanidmd.sock) and write the password to /shared/idm_admin.password.
+# Always re-recovers so the saved password matches the current database.
 set -eu
 export PATH="/shared/bin:/sbin:/usr/sbin:/bin:/usr/bin"
 

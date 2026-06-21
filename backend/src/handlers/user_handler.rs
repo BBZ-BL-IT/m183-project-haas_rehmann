@@ -1,5 +1,3 @@
-//! Handlers for the authenticated user's own data: profile and loans.
-
 use axum::{Json, extract::Path, extract::State};
 use axum_oidc_client::auth_session::AuthSession;
 use chrono::Duration;
@@ -12,8 +10,6 @@ use crate::identity::Identity;
 use crate::models::{LoanResponse, UserInfo};
 use crate::state::AppState;
 
-/// Loan-limit fields for a response: how many loans are used in the current
-/// window and (if at the limit) when the next slot frees up.
 async fn loan_limit(
     pool: &PgPool,
     user_id: i64,
@@ -30,7 +26,6 @@ async fn loan_limit(
     Ok((window.count, reset_at))
 }
 
-/// `GET /user/info` – the dashboard payload. Lazily provisions the local rows.
 pub async fn get_user_info(
     State(state): State<AppState>,
     session: AuthSession,
@@ -67,7 +62,6 @@ pub async fn get_user_info(
     }))
 }
 
-/// `POST /loan/{amount}` – take out a loan (amount is in the URL path).
 pub async fn take_loan(
     State(state): State<AppState>,
     session: AuthSession,

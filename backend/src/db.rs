@@ -1,19 +1,13 @@
-//! All SQL lives here (sqlx runtime queries – no compile-time DB needed).
-
 use chrono::{DateTime, Utc};
 use sqlx::{PgPool, Row};
 
 use crate::error::AppError;
 
-/// Minimal identity row.
 #[derive(Debug, sqlx::FromRow)]
 pub struct UserRow {
     pub id: i64,
 }
 
-/// Fetch the user for this OIDC subject, creating the row (and its 1:1
-/// bank_account + stats rows) on first sight. The stored `username` is kept on
-/// return visits so admin renames stick; `email`/`is_admin` are refreshed.
 pub async fn get_or_create_user(
     pool: &PgPool,
     subject: &str,
@@ -41,7 +35,6 @@ pub async fn get_or_create_user(
     .fetch_one(&mut *tx)
     .await?;
 
-    // Ensure the 1:1 child rows exist.
     sqlx::query("INSERT INTO bank_accounts (user_id) VALUES ($1) ON CONFLICT (user_id) DO NOTHING")
         .bind(row.id)
         .execute(&mut *tx)
@@ -55,7 +48,6 @@ pub async fn get_or_create_user(
     Ok(row)
 }
 
-/// The joined view used to build `UserInfo`.
 #[derive(Debug, sqlx::FromRow)]
 pub struct UserProfile {
     pub username: String,
@@ -89,8 +81,6 @@ pub async fn fetch_profile(pool: &PgPool, user_id: i64) -> Result<UserProfile, A
     Ok(profile)
 }
 
-/// Loan-limit window state: how many loans were taken inside the rolling window
-/// and the oldest one's timestamp (to compute when a slot frees up).
 pub struct LoanWindow {
     pub count: i64,
     pub oldest: Option<DateTime<Utc>>,
@@ -121,8 +111,6 @@ pub async fn loan_window(
     })
 }
 
-/// Record a loan: insert the row, credit the bank account, bump lifetime stats.
-/// Returns the new balance.
 pub async fn take_loan(pool: &PgPool, user_id: i64, amount: i64) -> Result<i64, AppError> {
     let mut tx = pool.begin().await?;
 
@@ -153,7 +141,6 @@ pub async fn take_loan(pool: &PgPool, user_id: i64, amount: i64) -> Result<i64, 
     Ok(balance)
 }
 
-/// Result of settling a spin.
 pub struct SpinResult {
     pub balance: i64,
     pub total_spent: i64,
@@ -161,9 +148,6 @@ pub struct SpinResult {
     pub highest_win_streak: i32,
 }
 
-/// Apply a spin atomically: verify affordability, settle balance + stats
-/// (profit and win-streak), write the audit row. `won` marks a net-positive
-/// spin for the win-streak counter.
 pub async fn record_spin(
     pool: &PgPool,
     user_id: i64,
@@ -233,7 +217,7 @@ pub async fn record_spin(
     })
 }
 
-// ── Admin ───────────────────────────────────────────────────────────────────
+// --- Admin ---
 
 #[derive(Debug, sqlx::FromRow)]
 pub struct AdminUserRow {
@@ -259,8 +243,6 @@ pub async fn list_users(pool: &PgPool) -> Result<Vec<AdminUserRow>, AppError> {
     Ok(rows)
 }
 
-/// Apply admin edits. Each `Option` is applied only when `Some`. Returns the
-/// resulting row, or `NotFound` if the id doesn't exist.
 pub async fn admin_update_user(
     pool: &PgPool,
     id: i64,
@@ -271,7 +253,6 @@ pub async fn admin_update_user(
 ) -> Result<AdminUserRow, AppError> {
     let mut tx = pool.begin().await?;
 
-    // Make sure the user exists (so we can 404 cleanly).
     let exists: Option<(i64,)> = sqlx::query_as("SELECT id FROM users WHERE id = $1")
         .bind(id)
         .fetch_optional(&mut *tx)
@@ -328,7 +309,6 @@ pub async fn admin_update_user(
     Ok(row)
 }
 
-/// Delete a user (cascades to bank_account, stats, loans, spins).
 pub async fn delete_user(pool: &PgPool, id: i64) -> Result<(), AppError> {
     let res = sqlx::query("DELETE FROM users WHERE id = $1")
         .bind(id)

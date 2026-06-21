@@ -11,9 +11,7 @@ const app = createApp(App)
 app.use(createPinia())
 app.use(router)
 
-// Globales 401-Handling registrieren: wenn das Backend die Session ablehnt,
-// lokalen Auth-Zustand leeren und – falls die aktuelle Seite Auth verlangt –
-// zur Startseite zurück.
+// On 401: clear local auth state and leave protected pages.
 const auth = useAuthStore()
 setUnauthorizedHandler(() => {
   auth.clearSession()
